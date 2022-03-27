@@ -1,4 +1,4 @@
-name: Clean workflows
+name: Clean Logs
 
 on:
   workflow_dispatch:
@@ -9,10 +9,10 @@ on:
         required: false
 
 jobs:
-  clean-wf:
+  clean-logs:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/github-clean-workflow-action@main
+      - uses: igorjs/github-clean-workflow-action@v1.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           owner: ${{ github.repository_owner }}

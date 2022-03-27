@@ -20,10 +20,24 @@ Clean workflow run logs based on configuration
 ### Example
 
 ```yaml
-uses: igorjs/github-clean-workflow-action@v1
-with:
-  token: ${{ secrets.GITHUB_TOKEN }}
-  owner: ${{ github.repository_owner }}
-  repo: ${{ github.event.repository.name }}
-  days_old: '7'
+name: Clean Workflow Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      days_old:
+        description: "The amount of days old to delete"
+        default: "7"
+        required: false
+
+jobs:
+  clean-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: igorjs/gh-actions-clean-workflow@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          days_old: ${{ github.event.inputs.days_old }}
 ```

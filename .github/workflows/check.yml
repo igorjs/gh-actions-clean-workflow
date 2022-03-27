@@ -3,7 +3,7 @@
 # `index.js` is the code that will run.
 # For our project, we generate this file through a build process from other source files.
 # We need to make sure the checked-in `index.js` actually matches what we expect it to be.
-name: Check dist/
+name: Check Dist
 
 on:
   push:
@@ -28,11 +28,8 @@ jobs:
         with:
           node-version: 12.x
 
-      - name: Install dependencies
+      - name: Install dependencies and Rebuild the dist/ directory
         run: npm ci
-
-      - name: Rebuild the dist/ directory
-        run: npm run prepare
 
       - name: Compare the expected and actual dist/ directories
         run: |

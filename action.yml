@@ -2,6 +2,12 @@ name: 'Clean Workflow Action'
 
 description: 'Clean workflow run logs based on configuration'
 
+author: igor.js
+
+branding:
+  icon: 'chevron-right'
+  color: 'yellow'
+
 inputs:
   token:
     description: 'The token to use to access the GitHub API'
