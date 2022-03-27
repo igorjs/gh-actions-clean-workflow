@@ -1,5 +1,7 @@
 name: 'Clean Workflow Action'
+
 description: 'Clean workflow run logs based on configuration'
+
 inputs:
   token:
     description: 'The token to use to access the GitHub API'
@@ -10,6 +12,15 @@ inputs:
   repo:
     description: 'The name of the repository'
     required: true
+  days_old:
+    description: 'The amount of days old to delete'
+    required: false
+    default: '7'
+
+outputs:
+  result:
+    description: 'The number of workflows deleted'
+
 runs:
-  using: 'node16'
-  main: 'index.js'
+  using: 'node12'
+  main: 'dist/index.js'
