@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "prepare": "ncc build src/index.js -o dist --minify --source-map --license licenses.txt",
+    "build": "ncc build src/index.js -o dist --minify --source-map --license licenses.txt",
     "test": "jest --passWithNoTests",
-    "all": "npm run lint && npm run prepare && npm run test"
+    "all": "npm run lint && npm run build && npm run test"
   },
   "keywords": [
     "GitHub",
@@ -17,12 +17,13 @@
   "author": "Igor J. Santos <igor@igorjs.io> (https://igorjs.io/)",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.8.2",
+    "@actions/core": "^1.6.0",
     "@actions/github": "^5.0.3"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.33.4",
-    "eslint": "^8.15.0",
-    "jest": "^28.1.0"
+    "@octokit/types": "^6.34.0",
+    "@vercel/ncc": "^0.33.3",
+    "eslint": "^8.11.0",
+    "jest": "^27.5.1"
   }
 }

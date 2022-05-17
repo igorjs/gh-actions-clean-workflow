@@ -11,6 +11,12 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - run: npm ci
-    - run: npm test
+      - uses: actions/checkout@v2
+      - name: Use Node.js 17
+        uses: actions/setup-node@v3
+        with:
+          node-version: 17
+      - name: Run Tests
+        run: |
+          npm ci
+          npm test --if-present
