@@ -11,6 +11,9 @@ on:
       - main
     paths-ignore:
       - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
 
 jobs:
   check-dist:
@@ -18,11 +21,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Set Node.js 17.x
+      - uses: actions/checkout@v2
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+
+      - name: Set Node.js 16.x
         uses: actions/setup-node@v3
         with:
-          node-version: 17.x
+          node-version: 16.x
 
       - name: Install dependencies and Rebuild the dist/ directory
         run: |
@@ -30,22 +42,23 @@ jobs:
           npm run build --if-present
 
       - name: Compare the expected and actual dist/ directories
+        continue-on-error: true
+        id: diff
         run: |
           if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
             echo "Detected uncommitted changes after build.  See status below:"
-            git diff
+            git diff --name-only
             exit 1
           fi
-        id: diff
 
       # If index.js was different than expected, upload the expected version as an artifact
       - name: Commit files # commit the new dist folder
-        if: ${{ failure() && steps.diff.conclusion == 'failure' }}
+        if: ${{ steps.diff.outcome == 'failure' }}
         run: |
-          git config --local user.email "ci@github.com"
+          git config --local user.email "igorjs@users.noreply.github.com"
           git config --local user.name "GitHub Action CI"
           git add ./dist
-          git commit -m "chore(CI): update distribution"
+          git commit -m "chore(ci): update dist folder"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

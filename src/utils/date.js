@@ -4,7 +4,7 @@
  * @return {Object|null} Reallocated time units. NULL on failure.
  */
 export function allocateTimeUnits(ms) {
-  if (!Number.isInteger(ms)) {
+  if (!Number.isSafeInteger(ms)) {
     return null;
   }
 
@@ -39,7 +39,7 @@ export function allocateTimeUnits(ms) {
  * @return {Object|null} Reallocated time units. NULL on failure.
  */
 export function calcTimeUnits(ms) {
-  if (!Number.isInteger(ms)) {
+  if (!Number.isSafeInteger(ms)) {
     return null;
   }
 
