@@ -11,10 +11,6 @@ on:
       - main
     paths-ignore:
       - '**.md'
-  pull_request:
-    paths-ignore:
-      - '**.md'
-  workflow_dispatch:
 
 jobs:
   check-dist:
@@ -43,8 +39,13 @@ jobs:
         id: diff
 
       # If index.js was different than expected, upload the expected version as an artifact
-      - uses: actions/upload-artifact@v3
+      - name: Commit files # commit the new dist folder
         if: ${{ failure() && steps.diff.conclusion == 'failure' }}
-        with:
-          name: dist
-          path: dist/
+        run: |
+          git config --local user.email "ci@github.com"
+          git config --local user.name "GitHub Action CI"
+          git add ./dist
+          git commit -m "chore(CI): update distribution"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
