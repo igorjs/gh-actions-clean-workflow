@@ -30,11 +30,9 @@ jobs:
   clean-logs:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v1
+      - uses: igorjs/gh-actions-clean-workflow@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          owner: ${{ github.repository_owner }}
-          repo: ${{ github.event.repository.name }}
           days_old: ${{ github.event.inputs.days_old }}
 ```
 
