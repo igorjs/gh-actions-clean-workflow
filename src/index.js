@@ -1,5 +1,5 @@
 import { setFailed } from "@actions/core";
-import { getOctokit } from "@actions/github";
+import { getApiActions } from "./api.js";
 import { dateDiff, calcTimeUnits } from "./utils/date.js";
 import { getToken, getOwner, getRepo, getDaysOld } from "./helpers/params";
 
@@ -10,21 +10,9 @@ async function run() {
     const token = getToken("token");
     const numDaysOldToBeDeleted = getDaysOld("days_old");
 
-    /**
-     * https://octokit.github.io/rest.js/v18
-     **/
-    const octokit = new getOctokit(token);
+    const actions = getApiActions({ token, owner, repo });
 
-    /**
-     * We need to fetch the list of workflow runs for a particular repo.
-     * We use octokit.paginate() to automatically loop over all the pages of the results.
-     */
-    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
-      owner,
-      repo,
-      status: "completed",
-      per_page: 100,
-    });
+    const { data } = await actions.listWorkflowRunsForRepo();
 
     const hasRunBeforeDate = (run) => {
       const diff = dateDiff(run.updated_at, Date.now());
@@ -36,19 +24,8 @@ async function run() {
     console.info(`${workflowRunsToDelete.length} workflow runs to be deleted`);
 
     if (workflowRunsToDelete.length > 0) {
-      /**
-       * Loop over all the WorkflowRuns and delete them.
-       **/
-      const deleteRunAction = ({ id }) => {
-        console.info(`Deleting workflow run #${id}`);
-
-        return octokit.rest.actions
-          .deleteWorkflowRun({ owner, repo, run_id: id })
-          .catch((err) => `An error occurrend: ${err.message}`);
-      };
-
       const results = await Promise.all(
-        workflowRunsToDelete.map(deleteRunAction)
+        workflowRunsToDelete.map(actions.deleteRunAction)
       );
 
       if (results.length > 0) {
@@ -59,8 +36,9 @@ async function run() {
         );
       }
     }
-  } catch (error) {
-    setFailed(error.message);
+  } catch (err) {
+    console.error(err);
+    setFailed(err.message);
   }
 }
 
