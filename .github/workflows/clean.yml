@@ -12,9 +12,10 @@ jobs:
   clean-logs:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/github-clean-workflow-action@main
+      - uses: actions/checkout@v2
+      - uses: ./
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          owner: ${{ github.repository_owner }}
-          repo: ${{ github.event.repository.name }}
-          days_old: ${{ github.event.inputs.days_old }}
+          # owner: ${{ github.repository_owner }}
+          # repo: ${{ github.event.repository.name }}
+          days_old: 0
