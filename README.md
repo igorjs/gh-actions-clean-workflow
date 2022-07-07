@@ -1,6 +1,6 @@
 # Clean Workflow Action
 
-Clean workflow run logs based on configuration
+Clean workflow run logs based on configuration.
 
 ## Usage
 
@@ -35,8 +35,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           days_old: ${{ github.event.inputs.days_old }}
 ```
-
-### Known issues
-
-1. The routine only deletes 100 workflows per run. There's an ongoing work to address [this issue](https://github.com/igorjs/gh-actions-clean-workflow/issues/22).
-
