@@ -7,7 +7,7 @@ Clean workflow run logs based on configuration
 ### Parameters
   - token: The token to use to access the GitHub API (required)
 
-  - days_old: The amount of days old to delete (default: 7)
+  - days_old: The amount of days old to delete (optional, default: 7)
 
 ### Outputs
 
@@ -30,7 +30,7 @@ jobs:
   clean-logs:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v2
+      - uses: igorjs/gh-actions-clean-workflow@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           days_old: ${{ github.event.inputs.days_old }}
