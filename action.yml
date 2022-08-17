@@ -12,6 +12,12 @@ inputs:
   token:
     description: "The token to use to access the GitHub API"
     required: true
+  owner:
+    description: "The owner of the repository"
+    required: false
+  repo:
+    description: "The name of the repository"
+    required: false
   days_old:
     description: "The amount of days old to delete"
     required: false
