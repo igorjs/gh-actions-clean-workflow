@@ -11,7 +11,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**.md'
+      - "**.md"
 
 permissions:
   contents: write
