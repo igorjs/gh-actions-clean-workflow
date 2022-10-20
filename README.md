@@ -73,6 +73,7 @@ jobs:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          days_old: "14" # optional, default value: "7"
 ```
 
 #### Both Manual and Scheduled Triggers
