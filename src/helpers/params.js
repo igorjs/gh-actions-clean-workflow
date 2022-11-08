@@ -1,13 +1,13 @@
 import { getInput } from "@actions/core";
 
-function throwError(message) {
-  throw new Error(message);
-}
+// function throwError(message) {
+//   throw new Error(message);
+// }
 
 export function getToken() {
-  const value = getInput("token", { required: true, trimWhitespace: true });
+  const value = getInput("token", { required: false, trimWhitespace: true });
 
-  return value || throwError("[Invalid Parameter] A token must be provided");
+  return value || process.env["GITHUB_TOKEN"];
 }
 
 export function getOwner() {

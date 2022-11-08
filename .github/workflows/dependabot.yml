@@ -1,0 +1,49 @@
+name: Dependabot (Pull Request)
+run-name: "Dependabot: Auto Merging PR"
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "packages/**/src/package.json"
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+  repository-projects: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TZ: "Australia/Sydney"
+  LANG: "en_AU.UTF-8"
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        continue-on-error: true
+        uses: dependabot/fetch-metadata@v1
+        with:
+          skip-commit-verification: true
+
+      - name: Approve a PR
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: |
+          gh pr review --approve "$PR_URL"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_URL: ${{github.event.pull_request.html_url}}
+
+      - name: Enable auto-merge for Dependabot PRs
+        run: gh pr merge --auto --squash --delete-branch "$PR_URL"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_URL: ${{github.event.pull_request.html_url}}

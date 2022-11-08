@@ -9,9 +9,12 @@ export const getApi = ({ token, owner, repo }) => {
   const deleteRunById = async (id) => {
     console.info("Deleting workflow run #%d", id);
 
-    return octokit.rest.actions
+    return await octokit.rest.actions
       .deleteWorkflowRun({ owner, repo, run_id: id })
-      .catch(() => false);
+      .catch((error) => {
+        console.error("Failed to delete workflow run #%d", id, error);
+        return false;
+      });
   };
 
   const deleteRuns = async (runs) => {
