@@ -5,9 +5,9 @@ import { getApi } from "./helpers/api.js";
 
 async function run() {
   try {
-    const repo = getRepo("repo");
-    const owner = getOwner("owner");
     const token = getToken("token");
+    const owner = getOwner("owner");
+    const repo = getRepo("repo");
     const numDaysOldToBeDeleted = getDaysOld("days_old");
 
     const api = getApi({ token, owner, repo });

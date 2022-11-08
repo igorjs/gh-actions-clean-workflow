@@ -1,26 +1,37 @@
 import { getInput } from "@actions/core";
 
-// function throwError(message) {
-//   throw new Error(message);
-// }
+function throwError(message) {
+  throw new Error(message);
+}
 
 export function getToken() {
   const value = getInput("token", { required: false, trimWhitespace: true });
 
-  return value || process.env["GITHUB_TOKEN"];
+  return value || throwError("[Invalid Parameter] A token must be provided");
 }
 
 export function getOwner() {
   const value = getInput("owner", { required: false, trimWhitespace: true });
 
-  return value || process.env["GITHUB_REPOSITORY_OWNER"];
+  return (
+    value ||
+    process.env["GITHUB_REPOSITORY_OWNER"] ||
+    throwError("[Invalid Parameter] An owner must be provided")
+  );
 }
 
 export function getRepo() {
   const value = getInput("repo", { required: false, trimWhitespace: true });
   const currentRepository = process.env["GITHUB_REPOSITORY"];
+  const parameterRepository = /\\/i.test(value)
+    ? value.slice(value.indexOf("/") + 1)
+    : undefined;
 
-  return value || currentRepository.slice(currentRepository.indexOf("/") + 1);
+  return (
+    parameterRepository ||
+    currentRepository.slice(currentRepository.indexOf("/") + 1) ||
+    throwError("[Invalid Parameter] A repo must be provided")
+  );
 }
 
 export function getDaysOld() {

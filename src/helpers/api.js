@@ -1,5 +1,7 @@
 import { getOctokit } from "@actions/github";
 
+const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const getApi = ({ token, owner, repo }) => {
   /**
    * https://octokit.github.io/rest.js/v18
@@ -9,18 +11,21 @@ export const getApi = ({ token, owner, repo }) => {
   const deleteRunById = async (id) => {
     console.info("Deleting workflow run #%d", id);
 
+    await sleep(1000);
+
     return await octokit.rest.actions
       .deleteWorkflowRun({ owner, repo, run_id: id })
-      .catch((error) => {
-        console.error("Failed to delete workflow run #%d", id, error);
+      .catch((err) => {
+        console.error("Failed to delete workflow run #%d", id, err.message);
         return false;
       });
   };
 
   const deleteRuns = async (runs) => {
-    return await Promise.all(
-      runs.map((run) => deleteRunById(run.id)).filter(Boolean)
+    const resolved = await Promise.all(
+      runs.map((run) => deleteRunById(run.id))
     );
+    return resolved.filter(Boolean);
   };
 
   const listWorkflowRuns = async (status = "completed") => {

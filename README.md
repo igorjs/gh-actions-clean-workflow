@@ -4,12 +4,14 @@ Clean workflow run logs based on configuration.
 
 ## Usage
 
+Please be aware of the Github's API [rate limit](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting).
+
 ### Parameters
-  - token: The token to use to access the GitHub API (required)
+  - token: The token to use to access the GitHub API (optional, default: github.token)
 
-  - owner: The owner of the repository (optional, default: github user)
+  - owner: The owner of the repository (optional, default: github.repository_owner)
 
-  - repo: The name of the repository (optional, default: current repository)
+  - repo: The name of the repository (optional, default: github.repository)
 
   - days_old: The amount of days old to delete (optional, default: 7)
 
@@ -28,9 +30,9 @@ jobs:
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          owner: igorjs # optional
-          repo: my-repo # optional
+          token: ${{ github.token }} # optional
+          owner: ${{ github.repository_owner }} # optional
+          repo: ${{ github.repository }} # optional
           days_old: 7 # optional
 ```
 
@@ -53,7 +55,6 @@ jobs:
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           days_old: ${{ github.event.inputs.days_old }} # optional
 ```
 
@@ -72,7 +73,6 @@ jobs:
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           days_old: "14" # optional, default value: "7"
 ```
 
@@ -101,6 +101,5 @@ jobs:
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           days_old: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
 ```
