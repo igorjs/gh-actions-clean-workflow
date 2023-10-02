@@ -22,6 +22,16 @@ Please be aware of the Github's API [rate limit](https://docs.github.com/en/rest
 
 - result: The number of workflows deleted
 
+### Permissions
+
+This workflow needs write permissions on your actions.
+Be sure to add the correct permissions as follows:
+
+```yaml
+permissions:
+  actions: write
+```
+
 ### Examples
 
 #### Basic usage
@@ -60,6 +70,8 @@ on:
 jobs:
   clean-logs:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
@@ -79,6 +91,8 @@ on:
 jobs:
   clean-logs:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
@@ -109,6 +123,8 @@ env:
 jobs:
   clean-logs:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v3
         with:
