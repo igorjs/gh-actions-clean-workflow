@@ -4,7 +4,7 @@ const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const getApi = ({ token, owner, repo }) => {
   /**
-   * https://octokit.github.io/rest.js/v18
+   * https://octokit.github.io/rest.js/v20
    **/
   const octokit = new getOctokit(token);
 
