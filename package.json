@@ -1,6 +1,6 @@
 {
   "name": "gh-actions-clean-workflow",
-  "version": "3.0.1",
+  "version": "4.0.0",
   "description": "Github Action to delete old workflow runs",
   "main": "index.js",
   "scripts": {
