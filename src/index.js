@@ -1,6 +1,6 @@
 import { setFailed } from "@actions/core";
 import { dateDiff, calcTimeUnits } from "./utils/date.js";
-import { getToken, getOwner, getRepo, getDaysOld } from "./helpers/params.js";
+import { getToken, getOwner, getRepo, getRunsToKeep, getDaysOld } from "./helpers/params.js";
 import { getApi } from "./helpers/api.js";
 
 async function run() {
@@ -8,6 +8,7 @@ async function run() {
     const token = getToken("token");
     const owner = getOwner("owner");
     const repo = getRepo("repo");
+    const numRunsToKeep = getRunsToKeep("runs_to_keep");
     const numDaysOldToBeDeleted = getDaysOld("days_old");
 
     const api = getApi({ token, owner, repo });
@@ -19,7 +20,7 @@ async function run() {
 
     const workflowRuns = await api.listWorkflowRuns();
 
-    const workflowRunsToDelete = workflowRuns.filter(hasRunBeforeDate);
+    const workflowRunsToDelete = workflowRuns.filter(hasRunBeforeDate).slice(numRunsToKeep);
 
     console.info("%d workflow runs to be deleted", workflowRunsToDelete.length);
 

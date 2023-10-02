@@ -35,6 +35,7 @@ export const getApi = ({ token, owner, repo }) => {
       octokit.rest.actions.listWorkflowRunsForRepo,
       { owner, repo, status, per_page: 100 }
     )) {
+      await sleep(1000);
       workflowRuns.push(...results.data);
     }
 
