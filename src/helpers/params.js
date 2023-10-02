@@ -34,6 +34,17 @@ export function getRepo() {
   );
 }
 
+export function getRunsToKeep() {
+  const value = getInput("runs_to_keep", { required: false, trimWhitespace: true });
+  const numberValue = Number(value);
+
+  if (Number.isSafeInteger(numberValue) && !Number.isNaN(numberValue)) {
+    return numberValue;
+  }
+
+  return 0; // Default value
+}
+
 export function getDaysOld() {
   const value = getInput("days_old", { required: false, trimWhitespace: true });
   const numberValue = Number(value);
