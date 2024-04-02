@@ -30,7 +30,7 @@ jobs:
       - name: Dependabot metadata
         id: metadata
         continue-on-error: true
-        uses: dependabot/fetch-metadata@v1
+        uses: dependabot/fetch-metadata@v2
         with:
           skip-commit-verification: true
 
