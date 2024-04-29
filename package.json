@@ -2,10 +2,13 @@
   "name": "gh-actions-clean-workflow",
   "version": "4.0.0",
   "description": "Github Action to delete old workflow runs",
-  "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "main": "dist/index.js",
   "scripts": {
     "lint": "eslint src",
-    "build": "ncc build src/index.js -o dist --minify --source-map --license licenses.txt",
+    "build": "ncc build src/index.ts -o dist --minify --no-source-map-register --target es2022 --license licenses.txt",
     "all": "npm run lint && npm run build"
   },
   "keywords": [
@@ -13,7 +16,7 @@
     "Actions",
     "JavaScript"
   ],
-  "author": "Igor J. Santos <igor@igorjs.io> (https://igorjs.io/)",
+  "author": "Igor J. S. <oss@mail.igorjs.io> (https://igorjs.io/)",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.0",
@@ -21,7 +24,10 @@
   },
   "devDependencies": {
     "@octokit/types": "^13.5.0",
+    "@eslint/js": "^9.1.1",
+    "@types/node": "^20.12.7",
     "@vercel/ncc": "^0.38.1",
-    "eslint": "^9.5.0"
+    "eslint": "^9.5.0",
+    "typescript": "^5.4.5"
   }
 }

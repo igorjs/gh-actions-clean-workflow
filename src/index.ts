@@ -1,26 +1,34 @@
 import { setFailed } from "@actions/core";
-import { dateDiff, calcTimeUnits } from "./utils/date.js";
-import { getToken, getOwner, getRepo, getRunsToKeep, getDaysOld } from "./helpers/params.js";
-import { getApi } from "./helpers/api.js";
+import { dateDiff, calculateTimeUnits } from "./utils/date";
+import {
+  getToken,
+  getOwner,
+  getRepo,
+  getRunsToKeep,
+  getDaysOld,
+} from "./helpers/params";
+import { getApi } from "./helpers/api";
 
 async function run() {
   try {
-    const token = getToken("token");
-    const owner = getOwner("owner");
-    const repo = getRepo("repo");
-    const numRunsToKeep = getRunsToKeep("runs_to_keep");
-    const numDaysOldToBeDeleted = getDaysOld("days_old");
+    const token = getToken();
+    const owner = getOwner();
+    const repo = getRepo();
+    const numRunsToKeep = getRunsToKeep();
+    const numDaysOldToBeDeleted = getDaysOld();
 
     const api = getApi({ token, owner, repo });
 
     const hasRunBeforeDate = (run) => {
       const diff = dateDiff(run.updated_at, Date.now());
-      return calcTimeUnits(diff).days >= numDaysOldToBeDeleted;
+      return calculateTimeUnits(diff).days >= numDaysOldToBeDeleted;
     };
 
     const workflowRuns = await api.listWorkflowRuns();
 
-    const workflowRunsToDelete = workflowRuns.filter(hasRunBeforeDate).slice(numRunsToKeep);
+    const workflowRunsToDelete = workflowRuns
+      .filter(hasRunBeforeDate)
+      .slice(numRunsToKeep);
 
     console.info("%d workflow runs to be deleted", workflowRunsToDelete.length);
 
