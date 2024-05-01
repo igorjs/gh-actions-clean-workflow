@@ -19,7 +19,7 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@v4
-      - uses: igorjs/gh-actions-clean-workflow@v4
+      - uses: igorjs/gh-actions-clean-workflow@v5
         with:
           days_old: 0
           runs_to_keep: 10
