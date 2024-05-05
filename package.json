@@ -22,6 +22,6 @@
   "devDependencies": {
     "@octokit/types": "^13.5.0",
     "@vercel/ncc": "^0.38.1",
-    "eslint": "^8.57.0"
+    "eslint": "^9.2.0"
   }
 }
