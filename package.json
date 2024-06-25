@@ -1,6 +1,6 @@
 {
-  "name": "gh-actions-clean-workflow",
-  "version": "4.0.0",
+  "name": "@igorjs/gh-actions-clean-workflow",
+  "version": "6.0.0",
   "description": "Github Action to delete old workflow runs",
   "engines": {
     "node": ">=20.0.0"

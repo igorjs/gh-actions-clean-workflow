@@ -43,7 +43,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v4
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
           token: ${{ github.token }} # optional
           owner: ${{ github.repository_owner }} # optional
@@ -75,7 +75,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v4
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
           days_old: ${{ github.event.inputs.days_old }} # optional
           runs_to_keep: ${{ github.event.inputs.runs_to_keep }} # optional
@@ -96,7 +96,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v4
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
           days_old: "14" # optional, default value: "7"
           runs_to_keep: "20" # optional, default value: "0"
@@ -128,7 +128,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v4
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
           days_old: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
           runs_to_keep: ${{ github.event.inputs.runs_to_keep || env.SCHEDULED_RUNS_TO_KEEP }}
