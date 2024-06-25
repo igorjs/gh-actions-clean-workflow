@@ -14,41 +14,41 @@ async function run() {
     const token = getToken().unwrap();
     const owner = getOwner().unwrap();
     const repo = getRepo().unwrap();
-    const runsToKeep = getRunsToKeep().unwrap();
-    const daysOldToBeDeleted = getDaysOld().unwrap();
+    const runsToKeep = getRunsToKeep().default(0).unwrap();
+    const daysOldToBeDeleted = getDaysOld().default(7).unwrap();
 
     const api = getApi({ token, owner, repo });
 
-    const workflowRunsList = (await api.getWorkflowRuns()).unwrap();
+    const workflowRuns = await api.getWorkflowRuns();
 
-    const workflowRunsToDelete = new Array();
+    for (const { workflow, runs } of workflowRuns) {
+      const runsToDelete = runs
+        .filter((run) => {
+          const diff = dateDiff(run.run_started_at);
+          const daysOld = calculateTimeUnits(diff).days;
+          return daysOld >= daysOldToBeDeleted;
+        })
+        .slice(runsToKeep);
 
-    for (const [_, runs] of workflowRunsList) {
-      workflowRunsToDelete.push(
-        ...runs
-          .filter((run) => {
-            const diff = dateDiff(run.updated_at);
-            const days = calculateTimeUnits(diff).days;
-            return days >= daysOldToBeDeleted;
-          })
-          .slice(runsToKeep)
-      );
-    }
+      console.log("runsToKeep", runsToKeep);
+      console.log("runsToDelete", runsToDelete.length);
 
-    if (workflowRunsToDelete.length > 0) {
-      console.info(
-        "%d workflow runs to be deleted",
-        workflowRunsToDelete.length
-      );
-
-      const results = await api.deleteRuns(workflowRunsToDelete);
-
-      if (results.length > 0) {
-        console.info("%d workflow runs sucessfully deleted", results.length);
-      } else {
-        throw new Error(
-          `The action could not delete any workflows. Please review your parameters.`
+      if (runsToDelete.length > 0) {
+        console.log(
+          "Deleting %d runs for workflow: %s",
+          runsToDelete.length,
+          workflow.name
         );
+
+        const { succeeded, failed } = await api.deleteRuns(runsToDelete);
+
+        if (succeeded > 0) {
+          console.info("%d workflow runs sucessfully deleted", succeeded);
+        }
+
+        if (failed > 0) {
+          console.error("%d workflow runs couldn't be deleted", failed);
+        }
       }
     }
   } catch (err) {

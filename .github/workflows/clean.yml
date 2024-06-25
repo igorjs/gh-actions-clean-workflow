@@ -19,7 +19,10 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@v4
-      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
-          days_old: 0
-          runs_to_keep: 10
+          fetch-depth: 0
+          ref: main
+      - uses: igorjs/gh-actions-clean-workflow@main
+        with:
+          days_old: ${{ github.event.inputs.days_old }}
+          runs_to_keep: ${{ github.event.inputs.runs_to_keep }}

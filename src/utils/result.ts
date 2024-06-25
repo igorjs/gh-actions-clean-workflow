@@ -15,6 +15,7 @@ type Matchers<T, E, R1, R2> = {
 
 export class Result<T, E extends Error = Error> {
   private ok: Boolean;
+  private defaultValue: T;
   private value: T;
   private error: E;
 
@@ -69,12 +70,23 @@ export class Result<T, E extends Error = Error> {
   /**
    * Unwraps the result value if it is Ok, otherwise panics with the error message.
    *
-   * @param result - The Result object to unwrap
-   * @returns The unwrapped value if the result is Ok, otherwise void
+   * @param {T} defaultValue - An optional fallback default value. It can be NULL.
+   */
+  public default(defaultValue?: T | null) {
+    this.defaultValue = defaultValue;
+    return this;
+  }
+
+  /**
+   * Unwraps the result value if it is Ok, otherwise panics with the error message.
+   *
+   * @returns The unwrapped value if the result is Ok, otherwise panic/halt.
    */
   public unwrap(): T | never {
     if (this.ok === true) {
       return this.value;
+    } else if (this.defaultValue !== undefined) {
+      return this.defaultValue;
     } else {
       console.error(this.error, this.error?.stack?.split("\n"));
       process.exit(1);
@@ -88,7 +100,7 @@ export class Result<T, E extends Error = Error> {
    * match({
    *   Ok: v => console.log('Youngest character:', v),
    *   Err: e => console.error('Error:', e),
-   * })(value-to-match),
+   * }),
    */
   public match<R1, R2>(matchers: Matchers<T, E, R1, R2>) {
     return this.ok === true

@@ -8,11 +8,11 @@ export function getToken(): Result<string> {
   if (value) {
     return Result.Ok(value);
   } else {
-    return Result.Err("[Invalid Parameter] A token must be provided");
+    return Result.Err("[Invalid Parameter] <token> must be provided");
   }
 }
 
-export function getOwner() {
+export function getOwner(): Result<string> {
   const value = getInput("owner", { required: false, trimWhitespace: true });
 
   if (value) {
@@ -20,7 +20,7 @@ export function getOwner() {
   } else if (env.GITHUB_REPOSITORY_OWNER) {
     return Result.Ok(env.GITHUB_REPOSITORY_OWNER);
   } else {
-    return Result.Err("[Invalid Parameter] An owner must be provided");
+    return Result.Err("[Invalid Parameter] <owner> must be provided");
   }
 }
 
@@ -38,7 +38,7 @@ export function getRepo(): Result<string> {
   } else if (currentRepository) {
     return Result.Ok(currentRepository);
   } else {
-    Result.Err("[Invalid Parameter] A repo must be provided");
+    return Result.Err("[Invalid Parameter] <repo> must be provided");
   }
 }
 
@@ -53,7 +53,7 @@ export function getRunsToKeep(): Result<number> {
     return Result.Ok(numberValue);
   }
 
-  return Result.Ok(0); // Default value
+  return Result.Err("[Invalid Parameter] <runs_to_keep> could not be parsed");
 }
 
 export function getDaysOld(): Result<number> {
@@ -64,5 +64,5 @@ export function getDaysOld(): Result<number> {
     return Result.Ok(numberValue);
   }
 
-  return Result.Ok(7); // Default value
+  return Result.Err("[Invalid Parameter] <days_old> could not be parsed");
 }
