@@ -72,11 +72,14 @@ export function calculateTimeUnits(ms: number): TimeUnits {
 
 /**
  * Calculate the difference between two dates
- * @param {Date | number} date1
- * @param {Date | number} date2
+ * @param {Date | number | string} date1
+ * @param {Date | number | string} date2 - default: Date.now()
  * @return {number} Difference in miliseconds.
  */
-export function dateDiff(date1: Date | number, date2: Date | number): number {
+export function dateDiff(
+  date1: Date | number | string,
+  date2: Date | number | string = Date.now()
+): number {
   const firstDateInMilliseconds = new Date(date1).getTime();
   const secondDateInMilliseconds = new Date(date2).getTime();
   return Math.abs(firstDateInMilliseconds - secondDateInMilliseconds);

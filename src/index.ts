@@ -1,38 +1,46 @@
 import { setFailed } from "@actions/core";
-import { dateDiff, calculateTimeUnits } from "./utils/date";
+import { getApi } from "./helpers/api";
 import {
-  getToken,
+  getDaysOld,
   getOwner,
   getRepo,
   getRunsToKeep,
-  getDaysOld,
+  getToken,
 } from "./helpers/params";
-import { getApi } from "./helpers/api";
+import { calculateTimeUnits, dateDiff } from "./utils/date";
 
 async function run() {
   try {
-    const token = getToken();
-    const owner = getOwner();
-    const repo = getRepo();
-    const numRunsToKeep = getRunsToKeep();
-    const numDaysOldToBeDeleted = getDaysOld();
+    const token = getToken().unwrap();
+    const owner = getOwner().unwrap();
+    const repo = getRepo().unwrap();
+    const runsToKeep = getRunsToKeep().unwrap();
+    const daysOldToBeDeleted = getDaysOld().unwrap();
 
     const api = getApi({ token, owner, repo });
 
-    const hasRunBeforeDate = (run) => {
-      const diff = dateDiff(run.updated_at, Date.now());
-      return calculateTimeUnits(diff).days >= numDaysOldToBeDeleted;
-    };
+    const workflowRunsList = (await api.getWorkflowRuns()).unwrap();
 
-    const workflowRuns = await api.listWorkflowRuns();
+    const workflowRunsToDelete = new Array();
 
-    const workflowRunsToDelete = workflowRuns
-      .filter(hasRunBeforeDate)
-      .slice(numRunsToKeep);
-
-    console.info("%d workflow runs to be deleted", workflowRunsToDelete.length);
+    for (const [_, runs] of workflowRunsList) {
+      workflowRunsToDelete.push(
+        ...runs
+          .filter((run) => {
+            const diff = dateDiff(run.updated_at);
+            const days = calculateTimeUnits(diff).days;
+            return days >= daysOldToBeDeleted;
+          })
+          .slice(runsToKeep)
+      );
+    }
 
     if (workflowRunsToDelete.length > 0) {
+      console.info(
+        "%d workflow runs to be deleted",
+        workflowRunsToDelete.length
+      );
+
       const results = await api.deleteRuns(workflowRunsToDelete);
 
       if (results.length > 0) {

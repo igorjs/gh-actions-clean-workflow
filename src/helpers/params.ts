@@ -1,14 +1,14 @@
 import { env } from "node:process";
 import { getInput } from "@actions/core";
-import { ok, error, Result } from "../utils/result";
+import { Result } from "../utils/result";
 
 export function getToken(): Result<string> {
   const value = getInput("token", { required: false, trimWhitespace: true });
 
   if (value) {
-    return ok(value);
+    return Result.Ok(value);
   } else {
-    return error("[Invalid Parameter] A token must be provided");
+    return Result.Err("[Invalid Parameter] A token must be provided");
   }
 }
 
@@ -16,11 +16,11 @@ export function getOwner() {
   const value = getInput("owner", { required: false, trimWhitespace: true });
 
   if (value) {
-    return ok(value);
+    return Result.Ok(value);
   } else if (env.GITHUB_REPOSITORY_OWNER) {
-    return ok(env.GITHUB_REPOSITORY_OWNER);
+    return Result.Ok(env.GITHUB_REPOSITORY_OWNER);
   } else {
-    return error("[Invalid Parameter] An owner must be provided");
+    return Result.Err("[Invalid Parameter] An owner must be provided");
   }
 }
 
@@ -34,11 +34,11 @@ export function getRepo(): Result<string> {
     : undefined;
 
   if (parameterRepository) {
-    return ok(parameterRepository);
+    return Result.Ok(parameterRepository);
   } else if (currentRepository) {
-    return ok(currentRepository);
+    return Result.Ok(currentRepository);
   } else {
-    error("[Invalid Parameter] A repo must be provided");
+    Result.Err("[Invalid Parameter] A repo must be provided");
   }
 }
 
@@ -50,10 +50,10 @@ export function getRunsToKeep(): Result<number> {
   const numberValue = Number(value);
 
   if (Number.isSafeInteger(numberValue) && !Number.isNaN(numberValue)) {
-    return ok(numberValue);
+    return Result.Ok(numberValue);
   }
 
-  return ok(0); // Default value
+  return Result.Ok(0); // Default value
 }
 
 export function getDaysOld(): Result<number> {
@@ -61,8 +61,8 @@ export function getDaysOld(): Result<number> {
   const numberValue = Number(value);
 
   if (Number.isSafeInteger(numberValue) && !Number.isNaN(numberValue)) {
-    return ok(numberValue);
+    return Result.Ok(numberValue);
   }
 
-  return ok(7); // Default value
+  return Result.Ok(7); // Default value
 }

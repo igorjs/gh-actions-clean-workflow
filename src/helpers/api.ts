@@ -1,6 +1,12 @@
 import { setTimeout } from "node:timers/promises";
 import { getOctokit } from "@actions/github";
-import { Result, ok, error } from "../utils/result";
+import { Result } from "../utils/result";
+import { type RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types";
+
+type WorkflowRunsDataArray =
+  RestEndpointMethodTypes["actions"]["listWorkflowRunsForRepo"]["response"]["data"]["workflow_runs"];
+
+type WorkflowRunsDataMap = IterableIterator<[number, WorkflowRunsDataArray]>;
 
 export function getApi({ token, owner, repo }) {
   /**
@@ -15,41 +21,63 @@ export function getApi({ token, owner, repo }) {
 
     return octokit.rest.actions
       .deleteWorkflowRun({ owner, repo, run_id: id })
-      .then((_) => ok(`SUCCESS: Workflow run #${id} was deleted`))
+      .then((_) => Result.Ok(`SUCCESS: Workflow run #${id} was deleted`))
       .catch((err) =>
-        error(`ERROR: Failed to delete workflow run #${id}: ${err.message}`)
+        Result.Err(
+          `ERROR: Failed to delete workflow run #${id}: ${err.message}`
+        )
       );
   }
 
-  async function deleteRuns(runs) {
-    const resolved = await Promise.all(
-      runs.map((run) => deleteRunById(run.id))
-    );
+  async function deleteRuns(
+    runs: WorkflowRunsDataArray
+  ): Promise<Array<Result<string>>> {
+    const resolved = await Promise.all(runs.map((r) => deleteRunById(r.id)));
     return resolved.filter(Boolean);
   }
 
-  const listCompletedWorkflowRuns = async () => {
-    const workflowRuns = [];
+  // FIXME: Refactor this monstruosity ASAP - 04/05/2024
+  async function getWorkflowRuns(): Promise<Result<WorkflowRunsDataMap>> {
+    const workflowsMap: Map<number, WorkflowRunsDataArray> = new Map();
 
-    for await (const results of octokit.paginate.iterator(
-      octokit.rest.actions.listWorkflowRunsForRepo,
+    for await (const response of octokit.paginate.iterator(
+      octokit.rest.actions.listRepoWorkflows,
       {
         owner,
         repo,
-        status: "completed",
         per_page: 100,
       }
     )) {
-      await setTimeout(1000); // rate limiting.
-      workflowRuns.push(...results.data);
+      await setTimeout(1000); // bypass rate limiting.
+
+      for (const workflow of response.data.workflows) {
+        for await (const response of octokit.paginate.iterator(
+          octokit.rest.actions.listWorkflowRuns,
+          {
+            owner,
+            repo,
+            workflow_id: workflow.id,
+            status: "completed",
+            per_page: 100,
+          }
+        )) {
+          await setTimeout(1000); // bypass rate limiting.
+
+          if (workflowsMap.has(workflow.id)) {
+            workflowsMap.get(workflow.id).push(...response.data.workflow_runs);
+          } else {
+            workflowsMap.set(workflow.id, response.data.workflow_runs);
+          }
+        }
+      }
     }
 
-    return workflowRuns;
-  };
+    return Result.Ok(workflowsMap.entries());
+  }
 
   return {
     deleteRuns,
     deleteRunById,
-    listWorkflowRuns: listCompletedWorkflowRuns,
+    getWorkflowRuns,
   };
 }
