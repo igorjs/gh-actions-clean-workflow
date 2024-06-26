@@ -1,5 +1,5 @@
-import { env } from "node:process";
 import { getInput } from "@actions/core";
+import { env } from "node:process";
 import { Result } from "../utils/result";
 
 export function getToken(): Result<string> {

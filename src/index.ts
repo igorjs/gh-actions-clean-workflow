@@ -1,7 +1,6 @@
 import { setFailed } from "@actions/core";
 import { getApi } from "./helpers/api";
 import {
-  getDaysOld,
   getOwner,
   getRepo,
   getRunsOlderThan,

@@ -2,7 +2,6 @@ import { setTimeout } from "node:timers/promises";
 
 import { getOctokit } from "@actions/github";
 import { type RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types";
-import { run } from "node:test";
 
 type WorkflowData =
   RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["response"]["data"]["workflows"][0];
@@ -14,10 +13,6 @@ type WorkflowRunsDataMapEntry = {
   workflow: WorkflowData;
   runs: WorkflowRunsDataArray;
 };
-
-type WorkflowRunsDataMapEntries = IterableIterator<
-  [number, WorkflowRunsDataMapEntry]
->;
 
 type WorkflowRunsDataMapValues = IterableIterator<WorkflowRunsDataMapEntry>;
 
