@@ -33,10 +33,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set Node.js 16.x
+      - name: Set Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
 
       - name: Install dependencies and Rebuild the dist/ directory
         run: |
