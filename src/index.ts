@@ -4,6 +4,7 @@ import {
   getDaysOld,
   getOwner,
   getRepo,
+  getRunsOlderThan,
   getRunsToKeep,
   getToken,
 } from "./helpers/params";
@@ -14,8 +15,8 @@ async function run() {
     const token = getToken().unwrap();
     const owner = getOwner().unwrap();
     const repo = getRepo().unwrap();
-    const runsToKeep = getRunsToKeep().default(0).unwrap();
-    const daysOldToBeDeleted = getDaysOld().default(7).unwrap();
+    const keep = getRunsToKeep().default(0).unwrap();
+    const olderThanDays = getRunsOlderThan().default(7).unwrap();
 
     const api = getApi({ token, owner, repo });
 
@@ -25,13 +26,10 @@ async function run() {
       const runsToDelete = runs
         .filter((run) => {
           const diff = dateDiff(run.run_started_at);
-          const daysOld = calculateTimeUnits(diff).days;
-          return daysOld >= daysOldToBeDeleted;
+          const days = calculateTimeUnits(diff).days;
+          return days >= olderThanDays;
         })
-        .slice(runsToKeep);
-
-      console.log("runsToKeep", runsToKeep);
-      console.log("runsToDelete", runsToDelete.length);
+        .slice(keep);
 
       if (runsToDelete.length > 0) {
         console.log(

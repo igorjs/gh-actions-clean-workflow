@@ -14,7 +14,9 @@ Please be aware of the Github's API [rate limit](https://docs.github.com/en/rest
 
 - repo: The name of the repository (optional, default: github.repository)
 
-- days_old: The amount of days old to delete (optional, default: 7)
+- ~~days_old: The amount of days old to delete (optional, default: 7)~~ (Deprecated)
+
+- runs_older_than: The amount of days for a workflow run, since its last rerun, be considered old (optional, default: 7)
 
 - runs_to_keep: The amount of latest workflows runs to keep (optional, default: 0)
 
@@ -43,12 +45,12 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v5
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
           token: ${{ github.token }} # optional
           owner: ${{ github.repository_owner }} # optional
           repo: ${{ github.repository }} # optional
-          days_old: 7 # optional
+          runs_older_than: 7 # optional
           runs_to_keep: 0 # optional
 ```
 
@@ -60,7 +62,7 @@ name: Clean Workflow Logs
 on:
   workflow_dispatch:
     inputs:
-      days_old:
+      runs_older_than:
         description: "The amount of days old to delete"
         default: "7"
         required: false
@@ -75,9 +77,9 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v5
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
-          days_old: ${{ github.event.inputs.days_old }} # optional
+          runs_older_than: ${{ github.event.inputs.runs_older_than }} # optional
           runs_to_keep: ${{ github.event.inputs.runs_to_keep }} # optional
 ```
 
@@ -96,9 +98,9 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v5
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
-          days_old: "14" # optional, default value: "7"
+          runs_older_than: "14" # optional, default value: "7"
           runs_to_keep: "20" # optional, default value: "0"
 ```
 
@@ -113,13 +115,13 @@ on:
 
   workflow_dispatch:
     inputs:
-      days_old:
+      runs_older_than:
         description: "The amount of days old to delete"
         default: "7"
         required: false
 
 env:
-  SCHEDULED_DAYS_OLD: "7"
+  SCHEDULED_RUNS_OLDER_THAN: "7"
   SCHEDULED_RUNS_TO_KEEP: "20"
 
 jobs:
@@ -128,8 +130,8 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v5
+      - uses: igorjs/gh-actions-clean-workflow@v6
         with:
-          days_old: ${{ github.event.inputs.days_old || env.SCHEDULED_DAYS_OLD }}
+          runs_older_than: ${{ github.event.inputs.runs_older_than || env.SCHEDULED_RUNS_OLDER_THAN }}
           runs_to_keep: ${{ github.event.inputs.runs_to_keep || env.SCHEDULED_RUNS_TO_KEEP }}
 ```
