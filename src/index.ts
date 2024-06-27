@@ -1,5 +1,5 @@
 import { setFailed } from "@actions/core";
-import { getApi } from "./helpers/api";
+import { getApi, type WorkflowRunData } from "./helpers/api";
 import {
   getOwner,
   getRepo,
@@ -14,21 +14,21 @@ async function run() {
     const token = getToken().unwrap();
     const owner = getOwner().unwrap();
     const repo = getRepo().unwrap();
-    const keep = getRunsToKeep().default(0).unwrap();
-    const olderThanDays = getRunsOlderThan().default(7).unwrap();
+    const keep = getRunsToKeep().unwrapOrElse(0);
+    const olderThanDays = getRunsOlderThan().unwrapOrElse(7);
 
     const api = getApi({ token, owner, repo });
 
     const workflowRuns = await api.getWorkflowRuns();
 
+    const filterOlderThan = (run: WorkflowRunData) => {
+      const diff = dateDiff(run.run_started_at);
+      const days = calculateTimeUnits(diff).days;
+      return days >= olderThanDays;
+    };
+
     for (const { workflow, runs } of workflowRuns) {
-      const runsToDelete = runs
-        .filter((run) => {
-          const diff = dateDiff(run.run_started_at);
-          const days = calculateTimeUnits(diff).days;
-          return days >= olderThanDays;
-        })
-        .slice(keep);
+      const runsToDelete = runs.filter(filterOlderThan).slice(keep);
 
       if (runsToDelete.length > 0) {
         console.log(

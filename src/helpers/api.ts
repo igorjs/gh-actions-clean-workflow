@@ -3,18 +3,18 @@ import { setTimeout } from "node:timers/promises";
 import { getOctokit } from "@actions/github";
 import { type RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types";
 
-type WorkflowData =
+export type WorkflowData =
   RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["response"]["data"]["workflows"][0];
 
-type WorkflowRunsDataArray =
-  RestEndpointMethodTypes["actions"]["listWorkflowRunsForRepo"]["response"]["data"]["workflow_runs"];
+export type WorkflowRunData =
+  RestEndpointMethodTypes["actions"]["listWorkflowRunsForRepo"]["response"]["data"]["workflow_runs"][0];
 
-type WorkflowRunsDataMapEntry = {
+export type WorkflowDataMapEntry = {
   workflow: WorkflowData;
-  runs: WorkflowRunsDataArray;
+  runs: Array<WorkflowRunData>;
 };
 
-type WorkflowRunsDataMapValues = IterableIterator<WorkflowRunsDataMapEntry>;
+export type WorkflowDataMapValues = IterableIterator<WorkflowDataMapEntry>;
 
 export function getApi({ token, owner, repo }) {
   /**
@@ -35,7 +35,7 @@ export function getApi({ token, owner, repo }) {
   }
 
   async function deleteRuns(
-    runs: WorkflowRunsDataArray
+    runs: Array<WorkflowRunData>
   ): Promise<{ succeeded: number; failed: number }> {
     const rs = await Promise.allSettled(runs.map((r) => deleteRunById(r.id)));
     const failed = rs.filter((r) => r.status === "rejected").length;
@@ -44,8 +44,8 @@ export function getApi({ token, owner, repo }) {
   }
 
   // FIXME: Refactor this monstruosity ASAP - 04/05/2024
-  async function getWorkflowRuns(): Promise<WorkflowRunsDataMapValues> {
-    const workflowsMap: Map<number, WorkflowRunsDataMapEntry> = new Map();
+  async function getWorkflowRuns(): Promise<WorkflowDataMapValues> {
+    const workflowsMap: Map<number, WorkflowDataMapEntry> = new Map();
 
     const workflows = await client.paginate(
       client.rest.actions.listRepoWorkflows,

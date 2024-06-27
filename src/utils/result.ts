@@ -1,21 +1,9 @@
-type Ok<T> = {
-  ok: true;
-  value: T;
-};
-
-type Err<E> = {
-  ok: false;
-  error: E;
-};
-
-type Matchers<T, E, R1, R2> = {
-  Ok(value: T): R1;
-  Err(error: E): R2;
-};
+type Ok<T> = { ok: true; value: T };
+type Err<E> = { ok: false; error: E };
+type Matchers<T, E, R1, R2> = { Ok(value: T): R1; Err(error: E): R2 };
 
 export class Result<T, E extends Error = Error> {
   private ok: Boolean;
-  private defaultValue: T;
   private value: T;
   private error: E;
 
@@ -29,29 +17,63 @@ export class Result<T, E extends Error = Error> {
   }
 
   /**
-   * Creates a Result object with the 'ok' property set to true and the provided value.
+   * Checks if the Result object represents a success.
    *
-   * @param value - The value to be wrapped in the Result object.
-   * @returns An Ok object with the 'ok' property set to true and the provided value.
+   * @returns A boolean value indicating whether the Result object represents a success (ok === true).
    */
-  static Ok<T, E extends Error = Error>(value: T): Result<T, E> {
-    return new this({
-      ok: true,
-      value,
-    });
+  public isOk(): boolean {
+    return this.ok === true;
   }
 
   /**
-   * Creates an error result with the provided error message.
+   * Checks if the Result object represents an error.
    *
-   * @param message - The error message to be included in the error result.
-   * @returns An error result object containing the provided error message.
+   * @returns A boolean value indicating whether the Result object represents an error (ok === false).
    */
-  static Err<T, E extends Error = Error>(message: string): Result<T, E> {
-    return new this({
-      ok: false,
-      error: new Error(message) as E,
-    });
+  public isErr(): boolean {
+    return this.ok === false;
+  }
+
+  /**
+   * Unwrap Results with Pattern Matching
+   *
+   * @example
+   * match({
+   *   Ok: v => console.log('Youngest character:', v),
+   *   Err: e => console.error('Error:', e),
+   * }),
+   */
+  public match<R1, R2>(matchers: Matchers<T, E, R1, R2>) {
+    return this.ok === true
+      ? matchers.Ok(this.value)
+      : matchers.Err(this.error);
+  }
+
+  /**
+   * Unwraps the result value if it is Ok, otherwise panics with the error message.
+   *
+   * @returns The unwrapped value if the result is Ok, otherwise panic/halt.
+   */
+  public unwrap(): T | never {
+    if (this.ok === true) {
+      return this.value;
+    } else {
+      console.error(this.error, this.error?.stack?.split("\n"));
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Unwraps the result value if it is Ok, otherwise return the default value.
+   *
+   * @returns The unwrapped value if the result is Ok, otherwise default value.
+   */
+  public unwrapOrElse(defaultValue: T | null): T | never {
+    if (this.ok === true) {
+      return this.value;
+    } else {
+      return defaultValue;
+    }
   }
 
   /**
@@ -68,43 +90,22 @@ export class Result<T, E extends Error = Error> {
   }
 
   /**
-   * Unwraps the result value if it is Ok, otherwise panics with the error message.
+   * Creates a Result object with the 'ok' property set to true and the provided value.
    *
-   * @param {T} defaultValue - An optional fallback default value. It can be NULL.
+   * @param value - The value to be wrapped in the Result object.
+   * @returns An Ok object with the 'ok' property set to true and the provided value.
    */
-  public default(defaultValue?: T | null) {
-    this.defaultValue = defaultValue;
-    return this;
+  static Ok<T, E extends Error = Error>(value: T): Result<T, E> {
+    return new this({ ok: true, value });
   }
 
   /**
-   * Unwraps the result value if it is Ok, otherwise panics with the error message.
+   * Creates an error result with the provided error message.
    *
-   * @returns The unwrapped value if the result is Ok, otherwise panic/halt.
+   * @param message - The error message to be included in the error result.
+   * @returns An error result object containing the provided error message.
    */
-  public unwrap(): T | never {
-    if (this.ok === true) {
-      return this.value;
-    } else if (this.defaultValue !== undefined) {
-      return this.defaultValue;
-    } else {
-      console.error(this.error, this.error?.stack?.split("\n"));
-      process.exit(1);
-    }
-  }
-
-  /**
-   * Unwrap Results with Pattern Matching
-   *
-   * @example
-   * match({
-   *   Ok: v => console.log('Youngest character:', v),
-   *   Err: e => console.error('Error:', e),
-   * }),
-   */
-  public match<R1, R2>(matchers: Matchers<T, E, R1, R2>) {
-    return this.ok === true
-      ? matchers.Ok(this.value)
-      : matchers.Err(this.error);
+  static Err<T, E extends Error = Error>(message: string): Result<T, E> {
+    return new this({ ok: false, error: new Error(message) as E });
   }
 }
