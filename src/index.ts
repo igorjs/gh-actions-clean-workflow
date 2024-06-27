@@ -14,7 +14,7 @@ async function run() {
     const token = getToken().unwrap();
     const owner = getOwner().unwrap();
     const repo = getRepo().unwrap();
-    const keep = getRunsToKeep().unwrapOrElse(0);
+    const runsToKeep = getRunsToKeep().unwrapOrElse(0);
     const olderThanDays = getRunsOlderThan().unwrapOrElse(7);
 
     const api = getApi({ token, owner, repo });
@@ -28,7 +28,7 @@ async function run() {
     };
 
     for (const { workflow, runs } of workflowRuns) {
-      const runsToDelete = runs.filter(filterOlderThan).slice(keep);
+      const runsToDelete = runs.slice(runsToKeep).filter(filterOlderThan);
 
       if (runsToDelete.length > 0) {
         console.log(
