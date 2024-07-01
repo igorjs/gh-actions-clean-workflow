@@ -28,7 +28,7 @@
     "@total-typescript/ts-reset": "^0.5.1",
     "@types/node": "^20.14.9",
     "@vercel/ncc": "^0.38.1",
-    "eslint": "^9.5.0",
+    "eslint": "^9.6.0",
     "typescript": "^5.5.3"
   }
 }
