@@ -45,7 +45,7 @@ export function getApi({ token, owner, repo }) {
 
   // FIXME: Refactor this monstruosity ASAP - 04/05/2024
   async function getWorkflowRuns(): Promise<WorkflowDataMapValues> {
-    const workflowsMap: Map<number, WorkflowDataMapEntry> = new Map();
+    const workflowsMap = new Map<number, WorkflowDataMapEntry>();
 
     const workflows = await client.paginate(
       client.rest.actions.listRepoWorkflows,
