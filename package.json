@@ -19,7 +19,7 @@
   "author": "Igor J. S. <oss@mail.igorjs.io> (https://igorjs.io/)",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.10.0",
+    "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0"
   },
   "devDependencies": {
