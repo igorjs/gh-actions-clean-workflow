@@ -23,7 +23,7 @@
     "@actions/github": "^6.0.0"
   },
   "devDependencies": {
-    "@octokit/types": "^13.6.0",
+    "@octokit/types": "^13.6.2",
     "@eslint/js": "^9.16.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^22.10.1",
