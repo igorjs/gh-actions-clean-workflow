@@ -56,20 +56,6 @@ export function getRunsToKeep(): Result<number> {
   return Result.Err("[Invalid Parameter] <runs_to_keep> could not be parsed");
 }
 
-/**
- * @deprecated This method will be removed in the next major release. Use getRunsOlderThan() instead.
- */
-export function getDaysOld(): Result<number> {
-  const value = getInput("days_old", { required: false, trimWhitespace: true });
-  const numberValue = Number(value);
-
-  if (Number.isSafeInteger(numberValue) && !Number.isNaN(numberValue)) {
-    return Result.Ok(numberValue);
-  }
-
-  return Result.Err("[Invalid Parameter] <days_old> could not be parsed");
-}
-
 export function getRunsOlderThan(): Result<number> {
   const value = getInput("runs_older_than", {
     required: false,

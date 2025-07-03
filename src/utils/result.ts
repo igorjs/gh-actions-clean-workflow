@@ -3,7 +3,7 @@ type Err<E> = { ok: false; error: E };
 type Matchers<T, E, R1, R2> = { Ok(value: T): R1; Err(error: E): R2 };
 
 export class Result<T, E extends Error = Error> {
-  private ok: Boolean;
+  private ok: boolean;
   private value: T;
   private error: E;
 
@@ -79,7 +79,7 @@ export class Result<T, E extends Error = Error> {
   /**
    * Converts Exception-throwing Functions to Result-returning Functions
    */
-  static wrap<T, A extends any[]>(fn: (...args: A) => T) {
+  static wrap<T, A extends unknown[]>(fn: (...args: A) => T) {
     return function (...args: A): Result<T> {
       try {
         return Result.Ok(fn(...args));
