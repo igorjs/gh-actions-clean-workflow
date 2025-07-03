@@ -1,85 +1,161 @@
 import { setTimeout } from "node:timers/promises";
 
 import { getOctokit } from "@actions/github";
-import { type RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types";
 
-export type WorkflowData =
-  RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["response"]["data"]["workflows"][0];
-
-export type WorkflowRunData =
-  RestEndpointMethodTypes["actions"]["listWorkflowRunsForRepo"]["response"]["data"]["workflow_runs"][0];
-
-export type WorkflowDataMapEntry = {
-  workflow: WorkflowData;
-  runs: Array<WorkflowRunData>;
+type WorkflowRun = {
+  id: number;
+  workflow_id: number;
+  created_at: string;
 };
 
-export type WorkflowDataMapValues = IterableIterator<WorkflowDataMapEntry>;
+type ApiParams = {
+  token: string;
+  owner: string;
+  repo: string;
+};
 
-export function getApi({ token, owner, repo }) {
+type Api = {
+  deleteRuns: (
+    runs: number[]
+  ) => Promise<{ succeeded: number; failed: number }>;
+  getRunsToDelete: (
+    olderThanDays?: number,
+    runsToKeep?: number
+  ) => Promise<{
+    runIds: number[];
+    totalRuns: number;
+    workflowStats: Map<number, { total: number; toDelete: number }>;
+  }>;
+};
+
+export function getApi({ token, owner, repo }: ApiParams): Api {
   /**
    * https://octokit.github.io/rest.js/v20
    **/
-  const client = getOctokit(token);
+  const octokit = getOctokit(token);
 
   async function deleteRunById(id: number): Promise<void> {
     try {
-      console.info(`INFO: Deleting run #${id}"`);
-      await client.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id });
+      console.info(`INFO: Deleting run #${id}`);
+      await octokit.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id });
       console.info(`SUCCESS: Run #${id} was deleted`);
     } catch (err) {
       console.error(`ERROR: Failed to delete run #${id}: ${err.message}`);
+      throw err; // Re-throw to mark promise as rejected
     } finally {
       await setTimeout(1000); // rate limiting.
     }
   }
 
   async function deleteRuns(
-    runs: Array<WorkflowRunData>
+    runs: number[]
   ): Promise<{ succeeded: number; failed: number }> {
-    const rs = await Promise.allSettled(runs.map((r) => deleteRunById(r.id)));
-    const failed = rs.filter((r) => r.status === "rejected").length;
+    const rs = await Promise.allSettled(runs.map((id) => deleteRunById(id)));
     const succeeded = rs.filter((r) => r.status === "fulfilled").length;
+    const failed = rs.filter((r) => r.status === "rejected").length;
     return { failed, succeeded };
   }
 
-  // FIXME: Refactor this monstruosity ASAP - 04/05/2024
-  async function getWorkflowRuns(): Promise<WorkflowDataMapValues> {
-    const workflowsMap = new Map<number, WorkflowDataMapEntry>();
+  async function getWorkflowRuns(
+    olderThanDays?: number
+  ): Promise<WorkflowRun[]> {
+    let created: string | undefined;
 
-    const workflows = await client.paginate(
-      client.rest.actions.listRepoWorkflows,
+    // If olderThanDays is provided, create a date range filter
+    if (olderThanDays !== undefined && olderThanDays > 0) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+      // Format: <YYYY-MM-DD
+      created = `<${cutoffDate.toISOString().split("T")[0]}`;
+    }
+
+    const runs = await octokit.paginate(
+      octokit.rest.actions.listWorkflowRunsForRepo,
       {
         owner,
         repo,
+        status: "completed",
         per_page: 100,
+        ...(created && { created }),
       }
     );
 
-    for (const workflow of workflows) {
-      await setTimeout(1000); // bypass rate limiting.
+    // Return runs with id, workflow_id, and created_at for grouping and sorting
+    return runs.map((run) => ({
+      id: run.id,
+      workflow_id: run.workflow_id,
+      created_at: run.created_at,
+    }));
+  }
 
-      const runs = await client.paginate(client.rest.actions.listWorkflowRuns, {
-        owner,
-        repo,
-        workflow_id: workflow.id,
-        status: "completed",
-        per_page: 100,
+  async function getRunsToDelete(
+    olderThanDays?: number,
+    runsToKeep?: number
+  ): Promise<{
+    runIds: number[];
+    totalRuns: number;
+    workflowStats: Map<number, { total: number; toDelete: number }>;
+  }> {
+    const runs = await getWorkflowRuns(olderThanDays);
+    const totalRuns = runs.length;
+
+    if (totalRuns === 0) {
+      return {
+        runIds: [],
+        totalRuns: 0,
+        workflowStats: new Map(),
+      };
+    }
+
+    // Group runs by workflow_id
+    const runsByWorkflow = new Map<number, WorkflowRun[]>();
+    for (const run of runs) {
+      const workflowId = run.workflow_id;
+      if (!runsByWorkflow.has(workflowId)) {
+        runsByWorkflow.set(workflowId, []);
+      }
+      runsByWorkflow.get(workflowId).push(run);
+    }
+
+    // Collect run IDs to delete and stats, applying runsToKeep per workflow
+    const runIds: number[] = [];
+    const workflowStats = new Map<
+      number,
+      { total: number; toDelete: number }
+    >();
+
+    // If runsToKeep is 0 or undefined, delete all runs
+    const keepCount = runsToKeep || 0;
+
+    for (const [workflowId, workflowRuns] of runsByWorkflow) {
+      // Sort runs by created_at descending (newest first) to ensure runsToKeep works correctly
+      workflowRuns.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      // Skip the most recent runsToKeep runs
+      const runsToDelete = workflowRuns.slice(keepCount);
+
+      workflowStats.set(workflowId, {
+        total: workflowRuns.length,
+        toDelete: runsToDelete.length,
       });
 
-      if (workflowsMap.has(workflow.id)) {
-        workflowsMap.get(workflow.id).runs.push(...runs);
-      } else {
-        workflowsMap.set(workflow.id, { workflow, runs });
+      if (runsToDelete.length > 0) {
+        runIds.push(...runsToDelete.map((run) => run.id));
       }
     }
 
-    return workflowsMap.values();
+    return {
+      runIds,
+      totalRuns,
+      workflowStats,
+    };
   }
 
   return {
     deleteRuns,
-    deleteRunById,
-    getWorkflowRuns,
+    getRunsToDelete,
   };
 }

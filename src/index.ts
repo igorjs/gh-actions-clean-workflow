@@ -1,5 +1,5 @@
 import { setFailed } from "@actions/core";
-import { getApi, type WorkflowRunData } from "./helpers/api";
+import { getApi } from "./helpers/api";
 import {
   getOwner,
   getRepo,
@@ -7,7 +7,6 @@ import {
   getRunsToKeep,
   getToken,
 } from "./helpers/params";
-import { calculateTimeUnits, dateDiff } from "./utils/date";
 
 async function run() {
   try {
@@ -19,34 +18,43 @@ async function run() {
 
     const api = getApi({ token, owner, repo });
 
-    const workflowRuns = await api.getWorkflowRuns();
+    const { runIds, totalRuns, workflowStats } = await api.getRunsToDelete(
+      olderThanDays,
+      runsToKeep
+    );
 
-    const filterOlderThan = (run: WorkflowRunData) => {
-      const diff = dateDiff(run.run_started_at);
-      const days = calculateTimeUnits(diff).days;
-      return days >= olderThanDays;
-    };
+    console.info(
+      `INFO: Found ${totalRuns} runs older than ${olderThanDays} days`
+    );
 
-    for (const { workflow, runs } of workflowRuns) {
-      const runsToDelete = runs.slice(runsToKeep).filter(filterOlderThan);
+    if (runIds.length === 0) {
+      console.info("INFO: No runs to delete");
+      return;
+    }
 
-      if (runsToDelete.length > 0) {
-        console.log(
-          "Deleting %d runs for workflow: %s",
-          runsToDelete.length,
-          workflow.name
-        );
-
-        const { succeeded, failed } = await api.deleteRuns(runsToDelete);
-
-        if (succeeded > 0) {
-          console.info("%d workflow runs sucessfully deleted", succeeded);
-        }
-
-        if (failed > 0) {
-          console.error("%d workflow runs couldn't be deleted", failed);
+    // Log per-workflow statistics
+    if (runsToKeep > 0 && workflowStats.size > 0) {
+      for (const [workflowId, stats] of workflowStats) {
+        if (stats.toDelete > 0) {
+          console.info(
+            `INFO: Workflow ${workflowId}: keeping ${
+              stats.total - stats.toDelete
+            } runs, deleting ${stats.toDelete} runs`
+          );
         }
       }
+    }
+
+    console.info(
+      `INFO: Deleting ${runIds.length} total runs across all workflows...`
+    );
+
+    // Delete runs
+    const { failed, succeeded } = await api.deleteRuns(runIds);
+
+    console.info(`INFO: Successfully deleted ${succeeded} runs`);
+    if (failed > 0) {
+      console.warn(`WARN: Failed to delete ${failed} runs`);
     }
   } catch (err) {
     console.error(err);
