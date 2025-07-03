@@ -124,8 +124,8 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
       { total: number; toDelete: number }
     >();
 
-    // If runsToKeep is 0 or undefined, delete all runs
-    const keepCount = runsToKeep || 0;
+    // If runsToKeep is 0, undefined, or negative, delete all runs
+    const keepCount = Math.max(0, runsToKeep || 0);
 
     for (const [workflowId, workflowRuns] of runsByWorkflow) {
       // Sort runs by created_at descending (newest first) to ensure runsToKeep works correctly
