@@ -9,7 +9,10 @@
   "scripts": {
     "lint": "eslint src",
     "build": "ncc build src/index.ts -o dist --minify --no-source-map-register --target es2022 --license licenses.txt",
-    "all": "npm run lint && npm run build"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "all": "npm run lint && npm run test && npm run build"
   },
   "keywords": [
     "GitHub",
@@ -23,12 +26,22 @@
     "@actions/github": "^6.0.1"
   },
   "devDependencies": {
-    "@octokit/types": "^14.0.0",
     "@eslint/js": "^9.21.0",
+    "@jest/globals": "^30.0.4",
+    "@octokit/types": "^14.0.0",
     "@total-typescript/ts-reset": "^0.6.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.15.29",
+    "@typescript-eslint/eslint-plugin": "^8.35.1",
+    "@typescript-eslint/parser": "^8.35.1",
     "@vercel/ncc": "^0.38.3",
     "eslint": "^9.30.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
+    "globals": "^16.3.0",
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   }
 }

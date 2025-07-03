@@ -8,7 +8,7 @@ import {
   getToken,
 } from "./helpers/params";
 
-async function run() {
+(async function run() {
   try {
     const token = getToken().unwrap();
     const owner = getOwner().unwrap();
@@ -60,6 +60,4 @@ async function run() {
     console.error(err);
     setFailed(err.message);
   }
-}
-
-run();
+})();
