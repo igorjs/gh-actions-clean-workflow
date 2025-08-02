@@ -31,7 +31,7 @@
     "@octokit/types": "^14.0.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^22.15.29",
+    "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "@vercel/ncc": "^0.38.3",
