@@ -10,11 +10,11 @@ import {
 
 (async function run() {
   try {
-    const token = getToken().unwrap();
-    const owner = getOwner().unwrap();
-    const repo = getRepo().unwrap();
-    const runsToKeep = getRunsToKeep().unwrapOrElse(0);
-    const olderThanDays = getRunsOlderThan().unwrapOrElse(7);
+    const token = getToken();
+    const owner = getOwner();
+    const repo = getRepo();
+    const runsToKeep = getRunsToKeep();
+    const olderThanDays = getRunsOlderThan();
 
     const api = getApi({ token, owner, repo });
 

@@ -43,22 +43,42 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
       console.error(`ERROR: Failed to delete run #${id}: ${err.message}`);
       throw err; // Re-throw to mark promise as rejected
     } finally {
-      await setTimeout(1000); // rate limiting.
+      // Rate limiting: GitHub allows 180 DELETE/min (900 points ÷ 5 points per DELETE)
+      // 350ms = ~170 deletions/min with safety margin
+      await setTimeout(350);
     }
   }
 
   async function deleteRuns(
     runs: number[]
   ): Promise<{ succeeded: number; failed: number }> {
-    const rs = await Promise.allSettled(runs.map((id) => deleteRunById(id)));
-    const succeeded = rs.filter((r) => r.status === "fulfilled").length;
-    const failed = rs.filter((r) => r.status === "rejected").length;
+    const BATCH_SIZE = 20; // Process deletions in batches to respect GitHub's 100 concurrent request limit
+    let succeeded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < runs.length; i += BATCH_SIZE) {
+      const batch = runs.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((id) => deleteRunById(id))
+      );
+
+      // Single-pass counting
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          succeeded++;
+        } else {
+          failed++;
+        }
+      }
+    }
+
     return { failed, succeeded };
   }
 
   async function getWorkflowRuns(
     olderThanDays?: number
   ): Promise<WorkflowRun[]> {
+    const runs: WorkflowRun[] = [];
     let created: string | undefined;
 
     // If olderThanDays is provided, create a date range filter
@@ -69,7 +89,8 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
       created = `<${cutoffDate.toISOString().split("T")[0]}`;
     }
 
-    const runs = await octokit.paginate(
+    // Use iterator for memory efficiency - processes one page at a time
+    for await (const response of octokit.paginate.iterator(
       octokit.rest.actions.listWorkflowRunsForRepo,
       {
         owner,
@@ -78,14 +99,17 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
         per_page: 100,
         ...(created && { created }),
       }
-    );
+    )) {
+      for (const run of response.data) {
+        runs.push({
+          id: run.id,
+          workflow_id: run.workflow_id,
+          created_at: run.created_at,
+        });
+      }
+    }
 
-    // Return runs with id, workflow_id, and created_at for grouping and sorting
-    return runs.map((run) => ({
-      id: run.id,
-      workflow_id: run.workflow_id,
-      created_at: run.created_at,
-    }));
+    return runs;
   }
 
   async function getRunsToDelete(
@@ -128,7 +152,7 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
     const keepCount = Math.max(0, runsToKeep || 0);
 
     for (const [workflowId, workflowRuns] of runsByWorkflow) {
-      // Sort runs by created_at descending (newest first) to ensure runsToKeep works correctly
+      // Sort runs by created_at descending (newest first)
       workflowRuns.sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -142,8 +166,9 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
         toDelete: runsToDelete.length,
       });
 
-      if (runsToDelete.length > 0) {
-        runIds.push(...runsToDelete.map((run) => run.id));
+      // Collect run IDs to delete
+      for (const run of runsToDelete) {
+        runIds.push(run.id);
       }
     }
 

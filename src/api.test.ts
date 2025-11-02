@@ -1,28 +1,47 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { getApi } from "./api";
-import { getOctokit } from "@actions/github";
+import type { PaginateInterface } from "@octokit/plugin-paginate-rest";
 
 // Mock dependencies
-vi.mock("@actions/github");
+vi.mock("@actions/github", () => ({
+  getOctokit: vi.fn(),
+}));
 vi.mock("node:timers/promises", () => ({
   setTimeout: vi.fn(() => Promise.resolve()),
 }));
 
+import { getOctokit } from "@actions/github";
+
 const mockGetOctokit = vi.mocked(getOctokit);
 
+// Create a properly typed mock that matches what getApi expects
+interface MockOctokit {
+  paginate: PaginateInterface;
+  rest: {
+    actions: {
+      deleteWorkflowRun: ReturnType<typeof vi.fn>;
+      listWorkflowRunsForRepo: ReturnType<typeof vi.fn>;
+    };
+  };
+}
+
 describe("api", () => {
-  let mockOctokit: any;
+  let mockOctokit: MockOctokit;
   let mockPaginate: ReturnType<typeof vi.fn>;
   let mockDeleteWorkflowRun: ReturnType<typeof vi.fn>;
+  let mockPaginateIterator: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     mockPaginate = vi.fn();
+    mockPaginateIterator = vi.fn();
     mockDeleteWorkflowRun = vi.fn(() => Promise.resolve({}));
 
     mockOctokit = {
-      paginate: mockPaginate,
+      paginate: Object.assign(mockPaginate, {
+        iterator: mockPaginateIterator,
+      }),
       rest: {
         actions: {
           deleteWorkflowRun: mockDeleteWorkflowRun,
@@ -115,7 +134,10 @@ describe("api", () => {
     ];
 
     test("should return all runs when runsToKeep is 0", async () => {
-      mockPaginate.mockResolvedValue(mockRuns);
+      // Mock paginate.iterator to return an async iterable
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: mockRuns };
+      });
 
       const api = getApi({
         token: "test-token",
@@ -134,7 +156,9 @@ describe("api", () => {
     });
 
     test("should keep specified number of runs per workflow", async () => {
-      mockPaginate.mockResolvedValue(mockRuns);
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: mockRuns };
+      });
 
       const api = getApi({
         token: "test-token",
@@ -152,7 +176,9 @@ describe("api", () => {
     });
 
     test("should handle workflows with fewer runs than runsToKeep", async () => {
-      mockPaginate.mockResolvedValue(mockRuns);
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: mockRuns };
+      });
 
       const api = getApi({
         token: "test-token",
@@ -168,7 +194,9 @@ describe("api", () => {
     });
 
     test("should handle empty runs", async () => {
-      mockPaginate.mockResolvedValue([]);
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: [] };
+      });
 
       const api = getApi({
         token: "test-token",
@@ -188,7 +216,9 @@ describe("api", () => {
       vi.useFakeTimers();
       vi.setSystemTime(mockDate);
 
-      mockPaginate.mockResolvedValue(mockRuns);
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: mockRuns };
+      });
 
       const api = getApi({
         token: "test-token",
@@ -198,7 +228,7 @@ describe("api", () => {
 
       await api.getRunsToDelete(7, 2);
 
-      expect(mockPaginate).toHaveBeenCalledWith(
+      expect(mockPaginateIterator).toHaveBeenCalledWith(
         mockOctokit.rest.actions.listWorkflowRunsForRepo,
         expect.objectContaining({
           created: "<2024-01-03",
@@ -218,7 +248,6 @@ describe("api", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
       const error = new Error("Network error");
-      (error as any).message = "Network error";
       mockDeleteWorkflowRun.mockRejectedValue(error);
 
       const api = getApi({
@@ -239,7 +268,9 @@ describe("api", () => {
     });
 
     test("should handle paginate errors gracefully", async () => {
-      mockPaginate.mockRejectedValue(new Error("API rate limit"));
+      mockPaginateIterator.mockImplementation(async function* () {
+        throw new Error("API rate limit");
+      });
 
       const api = getApi({
         token: "test-token",
