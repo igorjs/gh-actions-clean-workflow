@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [7] - 2025-01-03
+## [7] - 2025-11-03
 
 ### Added
 
@@ -40,8 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Retry logic and error handling tests
   - Workflow filtering tests
   - Parameter validation tests
+- **Enhanced Clean Logs Workflow**: Comprehensive test suite with 6 test scenarios
+  - Basic dry run test
+  - Workflow filtering test
+  - Keep many runs test
+  - Delete all old runs test
+  - Short retention test
+  - Combined features test
 - **AI PR Review Workflow**: Automated code review using AI
 - **Workflow Statistics**: Per-workflow deletion statistics in logs
+- **CHANGELOG.md**: Complete release history documentation
 
 ### Changed
 
@@ -71,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workflow name validation (alphanumeric, spaces, dashes, underscores)
   - Comprehensive range checking
   - Clear error messages with parameter names
+- **Updated README**: Comprehensive documentation with all v7 features
+  - Migration guide from v6 to v7
+  - Advanced features documentation
+  - Multiple usage examples
 - **Updated Dependencies**: Major dependency updates
   - `@types/node`: 22.16.0 → 24.9.2
   - `@octokit/types`: 14.1.0 → 16.0.0
@@ -94,30 +106,124 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed retry logic edge cases
 - Enhanced parameter validation edge cases
 
-### Documentation
+### Security
 
-- Completely updated README with all v7 features
-- Added migration guide from v6 to v7
-- Added advanced features documentation (retry, circuit breaker, rate limiting)
-- Added comprehensive usage examples
-- Added development setup instructions
-- Added test coverage badge and statistics
-- Updated all examples to use `@v7`
+- Enhanced input validation for workflow names
+- Improved error handling to prevent information leakage
+- Rate limiting to prevent API abuse
 
-### Development
+## [6] - 2024-07-01
 
-- Added comprehensive test coverage (98.93%)
-- Added circuit breaker tests (100% coverage)
-- Added workflow filtering tests
-- Added parameter validation tests
-- Added error handling tests
-- Improved CI/CD workflows
-- Added stale issue management
-- Updated GitHub Actions workflow versions
+### Changed
 
-## [6] - Previous Release
+- Updated to Node.js 20
+- Dependency updates for security and compatibility
+- Improved GitHub Actions workflows
+- Updated to use `actions/checkout@v4`
+- Code quality improvements
 
-See previous releases for v6.x.x changes.
+### Fixed
+
+- Various bug fixes and stability improvements
+- Improved error handling
+
+## [5] - 2024-04-02
+
+### Added
+
+- Support for `runs_to_keep` parameter to retain N most recent runs per workflow
+- Per-workflow retention logic
+
+### Changed
+
+- Improved workflow run filtering logic
+- Better handling of workflow run pagination
+- Updated dependencies
+
+### Fixed
+
+- Fixed issues with keeping recent runs
+- Improved date filtering accuracy
+
+## [4] - 2023-10-02
+
+### Added
+
+- `runs_older_than` parameter to replace deprecated `days_old`
+- Better date-based filtering for workflow runs
+- Improved logging and error messages
+
+### Changed
+
+- Refactored date handling logic
+- Improved parameter naming for clarity
+
+### Deprecated
+
+- `days_old` parameter (use `runs_older_than` instead)
+
+### Fixed
+
+- Timezone handling improvements
+- Edge cases in date calculations
+
+## [3.0.1] - 2022-11-09
+
+### Fixed
+
+- Bug fixes for workflow run deletion
+- Improved error handling for API failures
+- Fixed edge cases in pagination
+
+## [3] - 2022-08-17
+
+### Added
+
+- GitHub Actions workflow automation
+- Batch deletion support for better performance
+- Pagination support for large repositories
+
+### Changed
+
+- Improved API request handling
+- Better progress reporting
+- Optimized deletion process
+
+### Fixed
+
+- Fixed issues with large numbers of workflow runs
+- Improved rate limiting handling
+
+## [2] - 2022-07-02
+
+### Added
+
+- TypeScript support
+- Comprehensive test suite with Jest
+- ESLint and Prettier configuration
+- GitHub Actions workflows for CI/CD
+
+### Changed
+
+- Complete TypeScript rewrite
+- Improved code organization
+- Better error messages
+- Enhanced type safety
+
+### Fixed
+
+- Various bug fixes from v1
+- Improved stability
+
+## [1] - 2022-05-17
+
+### Added
+
+- Initial release
+- Basic workflow run deletion functionality
+- `days_old` parameter for filtering runs
+- GitHub token authentication
+- Repository owner and name parameters
 
 ---
 
@@ -158,5 +264,36 @@ See previous releases for v6.x.x changes.
     echo "Failed: ${{ steps.clean.outputs.runs-failed }}"
 ```
 
+### From v5 to v6
+
+- Update Node.js to version 20 or higher
+- Review and update any deprecated dependencies in your workflows
+
+### From v4 to v5
+
+- The `runs_to_keep` parameter is now available for per-workflow retention
+- No breaking changes
+
+### From v3 to v4
+
+- Replace `days_old` with `runs_older_than` parameter
+- Same functionality, just renamed for clarity
+
+### From v2 to v3
+
+- No breaking changes
+- Benefits from improved pagination and performance
+
+### From v1 to v2
+
+- TypeScript rewrite - no user-facing changes
+- Better error messages and type safety
+
 [7]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v6...v7
-[6]: https://github.com/igorjs/gh-actions-clean-workflow/releases/tag/v6
+[6]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v5...v6
+[5]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v4...v5
+[4]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v3.0.1...v4
+[3.0.1]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v3...v3.0.1
+[3]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v2...v3
+[2]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v1...v2
+[1]: https://github.com/igorjs/gh-actions-clean-workflow/releases/tag/v1
