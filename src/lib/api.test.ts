@@ -252,6 +252,56 @@ describe("api", () => {
 
       vi.useRealTimers();
     });
+
+    test("should filter runs by workflow names", async () => {
+      const mockRunsWithNames = [
+        {
+          id: 1,
+          workflow_id: 100,
+          created_at: "2024-01-05T00:00:00Z",
+          name: "CI",
+        },
+        {
+          id: 2,
+          workflow_id: 100,
+          created_at: "2024-01-04T00:00:00Z",
+          name: "CI",
+        },
+        {
+          id: 3,
+          workflow_id: 200,
+          created_at: "2024-01-03T00:00:00Z",
+          name: "Deploy",
+        },
+        {
+          id: 4,
+          workflow_id: 300,
+          created_at: "2024-01-02T00:00:00Z",
+          name: "Tests",
+        },
+      ];
+
+      mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: mockRunsWithNames };
+      });
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+        workflowNames: ["CI", "Deploy"],
+      });
+
+      const result = await api.getRunsToDelete(undefined, 0);
+
+      // Should only include runs with names "CI" and "Deploy", excluding "Tests"
+      expect(result.runIds).toEqual([1, 2, 3]);
+      expect(result.totalRuns).toBe(3);
+      expect(result.workflowStats.size).toBe(2);
+      expect(result.workflowStats.get(100)).toEqual({ total: 2, toDelete: 2 });
+      expect(result.workflowStats.get(200)).toEqual({ total: 1, toDelete: 1 });
+      expect(result.workflowStats.get(300)).toBeUndefined();
+    });
   });
 
   describe("Error handling", () => {
@@ -279,6 +329,28 @@ describe("api", () => {
       );
 
       consoleInfoSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    test("should handle error without message property", async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const errorWithoutMessage = { status: 500 };
+      mockDeleteWorkflowRun.mockRejectedValue(errorWithoutMessage);
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      await api.deleteRuns([1]);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "ERROR: Failed to delete run #1: Unknown error"
+      );
+
       consoleErrorSpy.mockRestore();
     });
 

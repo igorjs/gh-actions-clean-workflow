@@ -7,6 +7,7 @@ import {
   getRunsOlderThan,
   getRunsToKeep,
   getToken,
+  getWorkflowNames,
 } from "./params";
 
 // Mock @actions/core
@@ -462,6 +463,121 @@ describe("params", () => {
       expect(getRunsToKeep()).toBe(10);
       expect(getRunsOlderThan()).toBe(30);
       expect(getDryRun()).toBe(false);
+    });
+  });
+
+  describe("getWorkflowNames", () => {
+    test("should return empty array when no workflow_names provided", () => {
+      mockGetInput.mockReturnValue("");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual([]);
+      expect(mockGetInput).toHaveBeenCalledWith("workflow_names", {
+        required: false,
+        trimWhitespace: true,
+      });
+    });
+
+    test("should return empty array when workflow_names is null", () => {
+      mockGetInput.mockReturnValue(null as unknown as string);
+
+      const result = getWorkflowNames();
+      expect(result).toEqual([]);
+    });
+
+    test("should return empty array when workflow_names is undefined", () => {
+      mockGetInput.mockReturnValue(undefined as unknown as string);
+
+      const result = getWorkflowNames();
+      expect(result).toEqual([]);
+    });
+
+    test("should parse single workflow name", () => {
+      mockGetInput.mockReturnValue("CI");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["CI"]);
+    });
+
+    test("should parse multiple workflow names separated by comma", () => {
+      mockGetInput.mockReturnValue("CI, Deploy, Tests");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["CI", "Deploy", "Tests"]);
+    });
+
+    test("should trim whitespace from workflow names", () => {
+      mockGetInput.mockReturnValue("  CI  ,  Deploy  ,  Tests  ");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["CI", "Deploy", "Tests"]);
+    });
+
+    test("should filter out empty strings after splitting", () => {
+      mockGetInput.mockReturnValue("CI,,Deploy,,,Tests");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["CI", "Deploy", "Tests"]);
+    });
+
+    test("should accept workflow names with spaces", () => {
+      mockGetInput.mockReturnValue("My CI Workflow, Another Test");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["My CI Workflow", "Another Test"]);
+    });
+
+    test("should accept workflow names with dashes", () => {
+      mockGetInput.mockReturnValue("ci-workflow, deploy-prod");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["ci-workflow", "deploy-prod"]);
+    });
+
+    test("should accept workflow names with underscores", () => {
+      mockGetInput.mockReturnValue("ci_workflow, deploy_prod");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["ci_workflow", "deploy_prod"]);
+    });
+
+    test("should accept workflow names with numbers", () => {
+      mockGetInput.mockReturnValue("CI2, Deploy123");
+
+      const result = getWorkflowNames();
+      expect(result).toEqual(["CI2", "Deploy123"]);
+    });
+
+    test("should throw error for workflow names with special characters", () => {
+      mockGetInput.mockReturnValue("CI@Workflow");
+
+      expect(() => getWorkflowNames()).toThrow(
+        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
+      );
+    });
+
+    test("should throw error for workflow names with slashes", () => {
+      mockGetInput.mockReturnValue("CI/Deploy");
+
+      expect(() => getWorkflowNames()).toThrow(
+        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
+      );
+    });
+
+    test("should throw error for workflow names with dots", () => {
+      mockGetInput.mockReturnValue("CI.Deploy");
+
+      expect(() => getWorkflowNames()).toThrow(
+        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
+      );
+    });
+
+    test("should throw error if any workflow name in list is invalid", () => {
+      mockGetInput.mockReturnValue("CI, Deploy!, Tests");
+
+      expect(() => getWorkflowNames()).toThrow(
+        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
+      );
     });
   });
 });

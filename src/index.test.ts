@@ -245,6 +245,34 @@ describe("index", () => {
     expect(mockSetFailed).not.toHaveBeenCalled();
   });
 
+  test("should log workflow names filter when provided", async () => {
+    mockGetWorkflowNames.mockReturnValue(["CI", "Deploy"]);
+
+    mockGetRunsToDelete.mockResolvedValue({
+      runIds: [1, 2],
+      totalRuns: 2,
+      workflowStats: new Map(),
+    });
+
+    mockDeleteRuns.mockResolvedValue({
+      succeeded: 2,
+      failed: 0,
+    });
+
+    await run();
+
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      "INFO: Filtering by workflows: CI, Deploy"
+    );
+    expect(mockGetApi).toHaveBeenCalledWith({
+      token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+      owner: "test-owner",
+      repo: "test-repo",
+      dryRun: false,
+      workflowNames: ["CI", "Deploy"],
+    });
+  });
+
   test("should log metrics at the end", async () => {
     mockGetRunsToDelete.mockResolvedValue({
       runIds: [1],
