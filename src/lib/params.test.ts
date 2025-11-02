@@ -6,6 +6,7 @@ import {
   getRepo,
   getRunsToKeep,
   getRunsOlderThan,
+  getDryRun,
 } from "./params";
 
 // Mock @actions/core
@@ -372,6 +373,72 @@ describe("params", () => {
     });
   });
 
+  describe("getDryRun", () => {
+    test("should return false when empty (default value)", () => {
+      mockGetInput.mockReturnValue("");
+
+      const result = getDryRun();
+      expect(result).toBe(false);
+    });
+
+    test("should return true for 'true'", () => {
+      mockGetInput.mockReturnValue("true");
+
+      const result = getDryRun();
+      expect(result).toBe(true);
+    });
+
+    test("should return true for 'TRUE' (case insensitive)", () => {
+      mockGetInput.mockReturnValue("TRUE");
+
+      const result = getDryRun();
+      expect(result).toBe(true);
+    });
+
+    test("should return true for '1'", () => {
+      mockGetInput.mockReturnValue("1");
+
+      const result = getDryRun();
+      expect(result).toBe(true);
+    });
+
+    test("should return true for 'yes'", () => {
+      mockGetInput.mockReturnValue("yes");
+
+      const result = getDryRun();
+      expect(result).toBe(true);
+    });
+
+    test("should return false for 'false'", () => {
+      mockGetInput.mockReturnValue("false");
+
+      const result = getDryRun();
+      expect(result).toBe(false);
+    });
+
+    test("should return false for '0'", () => {
+      mockGetInput.mockReturnValue("0");
+
+      const result = getDryRun();
+      expect(result).toBe(false);
+    });
+
+    test("should return false for 'no'", () => {
+      mockGetInput.mockReturnValue("no");
+
+      const result = getDryRun();
+      expect(result).toBe(false);
+    });
+
+    test("should throw error for invalid boolean values", () => {
+      mockGetInput.mockReturnValue("maybe");
+
+      expect(() => getDryRun()).toThrow(
+        "[Invalid Parameter] <dry_run> must be a boolean value"
+      );
+    });
+  });
+
   describe("Integration scenarios", () => {
     test("should handle all valid parameters", () => {
       delete process.env.GITHUB_REPOSITORY;
@@ -382,7 +449,8 @@ describe("params", () => {
         .mockReturnValueOnce("octocat")
         .mockReturnValueOnce("hello-world")
         .mockReturnValueOnce("10")
-        .mockReturnValueOnce("30");
+        .mockReturnValueOnce("30")
+        .mockReturnValueOnce("false");
 
       expect(getToken()).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
       expect(getOwner()).toBe("octocat");
@@ -393,6 +461,7 @@ describe("params", () => {
 
       expect(getRunsToKeep()).toBe(10);
       expect(getRunsOlderThan()).toBe(30);
+      expect(getDryRun()).toBe(false);
     });
   });
 });

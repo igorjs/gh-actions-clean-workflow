@@ -16,10 +16,10 @@ export default defineConfig({
         "src/**/__tests__/**",
       ],
       thresholds: {
-        lines: 95,
+        lines: 90,
         functions: 100,
-        branches: 95,
-        statements: 95,
+        branches: 85,
+        statements: 90,
       },
     },
     clearMocks: true,

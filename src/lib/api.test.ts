@@ -97,10 +97,17 @@ describe("api", () => {
     });
 
     test("should handle partial failures", async () => {
-      mockDeleteWorkflowRun
-        .mockResolvedValueOnce({})
-        .mockRejectedValueOnce(new Error("API Error"))
-        .mockResolvedValueOnce({});
+      // First call succeeds
+      mockDeleteWorkflowRun.mockResolvedValueOnce({});
+
+      // Second call fails with client error (no retries for 4xx errors)
+      const permError = Object.assign(new Error("Not Found"), {
+        status: 404,
+      });
+      mockDeleteWorkflowRun.mockRejectedValueOnce(permError);
+
+      // Third call succeeds
+      mockDeleteWorkflowRun.mockResolvedValueOnce({});
 
       const api = getApi({
         token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
@@ -287,6 +294,185 @@ describe("api", () => {
       });
 
       await expect(api.getRunsToDelete()).rejects.toThrow("API rate limit");
+    });
+  });
+
+  describe("Retry logic", () => {
+    test("should retry on server errors (5xx)", async () => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      // Fail twice with 500, then succeed
+      const serverError = Object.assign(new Error("Internal Server Error"), {
+        status: 500,
+      });
+      mockDeleteWorkflowRun
+        .mockRejectedValueOnce(serverError)
+        .mockRejectedValueOnce(serverError)
+        .mockResolvedValueOnce({});
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      const result = await api.deleteRuns([1]);
+
+      expect(result.succeeded).toBe(1);
+      expect(result.failed).toBe(0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("retrying in")
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    test("should handle rate limit with retry-after header", async () => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      const rateLimitError = Object.assign(new Error("Rate limit exceeded"), {
+        status: 429,
+        response: { headers: { "retry-after": "2" } },
+      });
+
+      mockDeleteWorkflowRun
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce({});
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      const result = await api.deleteRuns([1]);
+
+      expect(result.succeeded).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Rate limit hit")
+      );
+
+      const metrics = api.getMetrics();
+      expect(metrics.rateLimitHits).toBe(1);
+      expect(metrics.retries).toBeGreaterThan(0);
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    test("should not retry on client errors (4xx except 429)", async () => {
+      const clientError = Object.assign(new Error("Bad Request"), {
+        status: 400,
+      });
+      mockDeleteWorkflowRun.mockRejectedValueOnce(clientError);
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      const result = await api.deleteRuns([1]);
+
+      expect(result.succeeded).toBe(0);
+      expect(result.failed).toBe(1);
+      // Should only be called once (no retries)
+      expect(mockDeleteWorkflowRun).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Circuit breaker", () => {
+    test("should open circuit after multiple failures", async () => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      // Use 400 error which won't retry, to trigger circuit breaker faster
+      const error = Object.assign(new Error("Bad Request"), {
+        status: 400,
+      });
+      mockDeleteWorkflowRun.mockRejectedValue(error);
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      // Create enough runs to trigger circuit breaker (needs 5 failures to open)
+      const runIds = Array.from({ length: 10 }, (_, i) => i + 1);
+      const result = await api.deleteRuns(runIds);
+
+      // All 10 should fail (first 5 fail normally, then circuit opens)
+      expect(result.failed).toBe(10);
+
+      // Circuit breaker should have logged warnings
+      const circuitBreakerCalls = consoleWarnSpy.mock.calls.filter((call) =>
+        call[0]?.includes("Circuit breaker")
+      );
+      expect(circuitBreakerCalls.length).toBeGreaterThan(0);
+
+      const metrics = api.getMetrics();
+      // Either circuit breaker tripped or it opened (both indicate it's working)
+      expect(
+        metrics.circuitBreakerTrips + circuitBreakerCalls.length
+      ).toBeGreaterThan(0);
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe("Dry run mode", () => {
+    test("should not actually delete runs in dry run mode", async () => {
+      const consoleInfoSpy = vi
+        .spyOn(console, "info")
+        .mockImplementation(() => {});
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+        dryRun: true,
+      });
+
+      const result = await api.deleteRuns([1, 2, 3]);
+
+      expect(result.succeeded).toBe(3);
+      expect(result.failed).toBe(0);
+      expect(mockDeleteWorkflowRun).not.toHaveBeenCalled();
+      expect(consoleInfoSpy).toHaveBeenCalledWith(
+        "DRY RUN: Would delete run #1"
+      );
+      expect(consoleInfoSpy).toHaveBeenCalledWith(
+        "DRY RUN: Would delete run #2"
+      );
+      expect(consoleInfoSpy).toHaveBeenCalledWith(
+        "DRY RUN: Would delete run #3"
+      );
+
+      consoleInfoSpy.mockRestore();
+    });
+  });
+
+  describe("Metrics", () => {
+    test("should track API metrics correctly", async () => {
+      mockDeleteWorkflowRun.mockResolvedValue({});
+
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      await api.deleteRuns([1, 2, 3]);
+
+      const metrics = api.getMetrics();
+      expect(metrics.totalRequests).toBe(3);
+      expect(metrics.successfulRequests).toBe(3);
+      expect(metrics.failedRequests).toBe(0);
     });
   });
 });

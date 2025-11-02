@@ -1,68 +1,91 @@
-import { setTimeout } from "node:timers/promises";
+/**
+ * GitHub Actions API client with retry logic, circuit breaker, and rate limiting
+ */
 
+import { setTimeout } from "node:timers/promises";
 import { getOctokit } from "@actions/github";
 
-type WorkflowRun = {
-  id: number;
-  workflow_id: number;
-  created_at: string;
-};
+import { CircuitBreaker } from "./circuit-breaker";
+import { API_CONFIG, CircuitState } from "../config/constants";
+import { Logger } from "./logger";
+import { withRetry } from "./retry";
+import type {
+  Api,
+  ApiMetrics,
+  ApiParams,
+  DeletionResult,
+  RunsToDeleteResult,
+  WorkflowRun,
+} from "../config/types";
 
-type ApiParams = {
-  token: string;
-  owner: string;
-  repo: string;
-};
-
-type Api = {
-  deleteRuns: (
-    runs: number[]
-  ) => Promise<{ succeeded: number; failed: number }>;
-  getRunsToDelete: (
-    olderThanDays?: number,
-    runsToKeep?: number
-  ) => Promise<{
-    runIds: number[];
-    totalRuns: number;
-    workflowStats: Map<number, { total: number; toDelete: number }>;
-  }>;
-};
-
-export function getApi({ token, owner, repo }: ApiParams): Api {
-  /**
-   * https://octokit.github.io/rest.js/v20
-   **/
+/**
+ * Creates and returns an API client instance
+ * @param params - Configuration parameters for the API client
+ * @returns API client instance
+ */
+export function getApi(params: ApiParams): Api {
+  const { token, owner, repo, dryRun = false } = params;
   const octokit = getOctokit(token);
+  const circuitBreaker = new CircuitBreaker();
 
+  const metrics: ApiMetrics = {
+    totalRequests: 0,
+    successfulRequests: 0,
+    failedRequests: 0,
+    retries: 0,
+    rateLimitHits: 0,
+    circuitBreakerTrips: 0,
+  };
+
+  /**
+   * Deletes a single workflow run by ID
+   */
   async function deleteRunById(id: number): Promise<void> {
+    if (!circuitBreaker.canExecute()) {
+      metrics.circuitBreakerTrips++;
+      throw new Error(
+        `Circuit breaker is ${circuitBreaker.getState()} - skipping deletion of run #${id}`
+      );
+    }
+
+    if (dryRun) {
+      Logger.dryRun(`Would delete run #${id}`);
+      await setTimeout(100); // Simulate API call
+      return;
+    }
+
     try {
-      console.info(`INFO: Deleting run #${id}`);
-      await octokit.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id });
-      console.info(`SUCCESS: Run #${id} was deleted`);
+      Logger.info(`Deleting run #${id}`);
+      await withRetry(
+        () =>
+          octokit.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id }),
+        `delete run #${id}`,
+        metrics,
+        circuitBreaker
+      );
+      Logger.success(`Run #${id} was deleted`);
     } catch (err) {
-      console.error(`ERROR: Failed to delete run #${id}: ${err.message}`);
-      throw err; // Re-throw to mark promise as rejected
+      const errorMessage = err.message || "Unknown error";
+      Logger.error(`Failed to delete run #${id}: ${errorMessage}`);
+      throw err;
     } finally {
-      // Rate limiting: GitHub allows 180 DELETE/min (900 points ÷ 5 points per DELETE)
-      // 350ms = ~170 deletions/min with safety margin
-      await setTimeout(350);
+      await setTimeout(API_CONFIG.RATE_LIMIT_DELAY_MS);
     }
   }
 
-  async function deleteRuns(
-    runs: number[]
-  ): Promise<{ succeeded: number; failed: number }> {
-    const BATCH_SIZE = 20; // Process deletions in batches to respect GitHub's 100 concurrent request limit
+  /**
+   * Deletes multiple workflow runs in batches
+   */
+  async function deleteRuns(runs: number[]): Promise<DeletionResult> {
     let succeeded = 0;
     let failed = 0;
 
-    for (let i = 0; i < runs.length; i += BATCH_SIZE) {
-      const batch = runs.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < runs.length; i += API_CONFIG.BATCH_SIZE) {
+      const batch = runs.slice(i, i + API_CONFIG.BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map((id) => deleteRunById(id))
       );
 
-      // Single-pass counting
       for (const result of results) {
         if (result.status === "fulfilled") {
           succeeded++;
@@ -70,26 +93,32 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
           failed++;
         }
       }
+
+      if (circuitBreaker.getState() === CircuitState.OPEN) {
+        Logger.warn("Circuit breaker OPEN - stopping further deletions");
+        failed += runs.length - (i + batch.length);
+        break;
+      }
     }
 
     return { failed, succeeded };
   }
 
+  /**
+   * Fetches workflow runs matching the filter criteria
+   */
   async function getWorkflowRuns(
     olderThanDays?: number
   ): Promise<WorkflowRun[]> {
     const runs: WorkflowRun[] = [];
     let created: string | undefined;
 
-    // If olderThanDays is provided, create a date range filter
     if (olderThanDays !== undefined && olderThanDays > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
-      // Format: <YYYY-MM-DD
       created = `<${cutoffDate.toISOString().split("T")[0]}`;
     }
 
-    // Use iterator for memory efficiency - processes one page at a time
     for await (const response of octokit.paginate.iterator(
       octokit.rest.actions.listWorkflowRunsForRepo,
       {
@@ -112,14 +141,13 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
     return runs;
   }
 
+  /**
+   * Determines which runs should be deleted based on criteria
+   */
   async function getRunsToDelete(
     olderThanDays?: number,
     runsToKeep?: number
-  ): Promise<{
-    runIds: number[];
-    totalRuns: number;
-    workflowStats: Map<number, { total: number; toDelete: number }>;
-  }> {
+  ): Promise<RunsToDeleteResult> {
     const runs = await getWorkflowRuns(olderThanDays);
     const totalRuns = runs.length;
 
@@ -131,34 +159,29 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
       };
     }
 
-    // Group runs by workflow_id
     const runsByWorkflow = new Map<number, WorkflowRun[]>();
     for (const run of runs) {
       const workflowId = run.workflow_id;
       if (!runsByWorkflow.has(workflowId)) {
         runsByWorkflow.set(workflowId, []);
       }
-      runsByWorkflow.get(workflowId).push(run);
+      runsByWorkflow.get(workflowId)!.push(run);
     }
 
-    // Collect run IDs to delete and stats, applying runsToKeep per workflow
     const runIds: number[] = [];
     const workflowStats = new Map<
       number,
       { total: number; toDelete: number }
     >();
 
-    // If runsToKeep is 0, undefined, or negative, delete all runs
     const keepCount = Math.max(0, runsToKeep || 0);
 
     for (const [workflowId, workflowRuns] of runsByWorkflow) {
-      // Sort runs by created_at descending (newest first)
       workflowRuns.sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      // Skip the most recent runsToKeep runs
       const runsToDelete = workflowRuns.slice(keepCount);
 
       workflowStats.set(workflowId, {
@@ -166,7 +189,6 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
         toDelete: runsToDelete.length,
       });
 
-      // Collect run IDs to delete
       for (const run of runsToDelete) {
         runIds.push(run.id);
       }
@@ -179,8 +201,16 @@ export function getApi({ token, owner, repo }: ApiParams): Api {
     };
   }
 
+  /**
+   * Returns current API metrics
+   */
+  function getMetrics(): ApiMetrics {
+    return { ...metrics };
+  }
+
   return {
     deleteRuns,
     getRunsToDelete,
+    getMetrics,
   };
 }
