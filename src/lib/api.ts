@@ -24,7 +24,7 @@ import type {
  * @returns API client instance
  */
 export function getApi(params: ApiParams): Api {
-  const { token, owner, repo, dryRun = false } = params;
+  const { token, owner, repo, dryRun = false, workflowNames = [] } = params;
   const octokit = getOctokit(token);
   const circuitBreaker = new CircuitBreaker();
 
@@ -130,10 +130,18 @@ export function getApi(params: ApiParams): Api {
       }
     )) {
       for (const run of response.data) {
+        const workflowName = run.name || "";
+
+        // Filter by workflow names if specified
+        if (workflowNames.length > 0 && !workflowNames.includes(workflowName)) {
+          continue;
+        }
+
         runs.push({
           id: run.id,
           workflow_id: run.workflow_id,
           created_at: run.created_at,
+          name: workflowName,
         });
       }
     }

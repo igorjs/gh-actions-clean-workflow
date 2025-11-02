@@ -6,7 +6,7 @@ vi.mock("@actions/core");
 vi.mock("./lib/api");
 vi.mock("./lib/params");
 
-import { setFailed } from "@actions/core";
+import { setFailed, setOutput } from "@actions/core";
 import { getApi } from "./lib/api";
 import {
   getToken,
@@ -15,9 +15,11 @@ import {
   getRunsToKeep,
   getRunsOlderThan,
   getDryRun,
+  getWorkflowNames,
 } from "./lib/params";
 
 const mockSetFailed = vi.mocked(setFailed);
+const mockSetOutput = vi.mocked(setOutput);
 const mockGetApi = vi.mocked(getApi);
 const mockGetToken = vi.mocked(getToken);
 const mockGetOwner = vi.mocked(getOwner);
@@ -25,6 +27,7 @@ const mockGetRepo = vi.mocked(getRepo);
 const mockGetRunsToKeep = vi.mocked(getRunsToKeep);
 const mockGetRunsOlderThan = vi.mocked(getRunsOlderThan);
 const mockGetDryRun = vi.mocked(getDryRun);
+const mockGetWorkflowNames = vi.mocked(getWorkflowNames);
 
 describe("index", () => {
   let mockDeleteRuns: ReturnType<typeof vi.fn>;
@@ -51,6 +54,7 @@ describe("index", () => {
     mockGetRunsToKeep.mockReturnValue(5);
     mockGetRunsOlderThan.mockReturnValue(7);
     mockGetDryRun.mockReturnValue(false);
+    mockGetWorkflowNames.mockReturnValue([]);
 
     // Setup API mock
     mockDeleteRuns = vi.fn();
@@ -65,9 +69,9 @@ describe("index", () => {
     });
 
     mockGetApi.mockReturnValue({
-      deleteRuns: mockDeleteRuns,
-      getRunsToDelete: mockGetRunsToDelete,
-      getMetrics: mockGetMetrics,
+      deleteRuns: vi.fn(),
+      getMetrics: vi.fn(),
+      getRunsToDelete: vi.fn(),
     });
   });
 
@@ -111,6 +115,7 @@ describe("index", () => {
       owner: "test-owner",
       repo: "test-repo",
       dryRun: false,
+      workflowNames: [],
     });
 
     expect(mockGetRunsToDelete).toHaveBeenCalledWith(7, 5);
@@ -135,6 +140,13 @@ describe("index", () => {
     expect(mockDeleteRuns).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(mockGetMetrics).toHaveBeenCalled();
     expect(mockSetFailed).not.toHaveBeenCalled();
+
+    // Verify outputs are set
+    expect(mockSetOutput).toHaveBeenCalledWith("total-runs-found", "18");
+    expect(mockSetOutput).toHaveBeenCalledWith("runs-deleted", "8");
+    expect(mockSetOutput).toHaveBeenCalledWith("runs-failed", "0");
+    expect(mockSetOutput).toHaveBeenCalledWith("total-api-requests", "8");
+    expect(mockSetOutput).toHaveBeenCalledWith("successful-requests", "8");
   });
 
   test("should handle case with no runs to delete", async () => {
@@ -153,6 +165,11 @@ describe("index", () => {
     expect(mockDeleteRuns).not.toHaveBeenCalled();
     expect(mockGetMetrics).toHaveBeenCalled();
     expect(mockSetFailed).not.toHaveBeenCalled();
+
+    // Verify outputs are set even when no runs to delete
+    expect(mockSetOutput).toHaveBeenCalledWith("total-runs-found", "5");
+    expect(mockSetOutput).toHaveBeenCalledWith("runs-deleted", "0");
+    expect(mockSetOutput).toHaveBeenCalledWith("runs-failed", "0");
   });
 
   test("should handle partial deletion failures and set action as failed", async () => {
@@ -213,6 +230,7 @@ describe("index", () => {
       owner: "test-owner",
       repo: "test-repo",
       dryRun: true,
+      workflowNames: [],
     });
     expect(consoleInfoSpy).toHaveBeenCalledWith(
       "INFO: Workflow 100: keeping 2 runs, would delete 3 runs"

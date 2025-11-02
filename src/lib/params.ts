@@ -196,3 +196,34 @@ export function getDryRun(): boolean {
 
   throw new Error(ERROR_MESSAGES.INVALID_DRY_RUN);
 }
+
+/**
+ * Gets and validates workflow names filter (comma-separated)
+ * @returns Array of workflow names to filter, or empty array for all workflows
+ * @throws Error if value contains invalid characters
+ */
+export function getWorkflowNames(): string[] {
+  const value = getInput("workflow_names", {
+    required: false,
+    trimWhitespace: true,
+  });
+
+  if (value === "" || value === null || value === undefined) {
+    return [];
+  }
+
+  // Split by comma and trim whitespace
+  const names = value
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+
+  // Validate each workflow name
+  for (const name of names) {
+    if (!VALIDATION_RULES.WORKFLOW_NAME_REGEX.test(name)) {
+      throw new Error(ERROR_MESSAGES.INVALID_WORKFLOW_NAMES_FORMAT);
+    }
+  }
+
+  return names;
+}

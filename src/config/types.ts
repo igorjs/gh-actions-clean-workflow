@@ -2,7 +2,7 @@
  * Type definitions for the application
  */
 
-import { CircuitState } from './constants';
+import { CircuitState } from "./constants";
 
 /**
  * Represents a GitHub workflow run
@@ -14,6 +14,8 @@ export interface WorkflowRun {
   workflow_id: number;
   /** ISO 8601 timestamp when the run was created */
   created_at: string;
+  /** Name of the workflow */
+  name: string;
 }
 
 /**
@@ -28,6 +30,8 @@ export interface ApiParams {
   repo: string;
   /** Whether to run in dry-run mode (no actual deletions) */
   dryRun?: boolean;
+  /** Filter by workflow names - if provided, only delete runs from these workflows */
+  workflowNames?: string[];
 }
 
 /**

@@ -2,7 +2,7 @@
  * Main entry point for the GitHub Action
  */
 
-import { setFailed } from "@actions/core";
+import { setFailed, setOutput } from "@actions/core";
 import { getApi } from "./lib/api";
 import { Logger } from "./lib/logger";
 import {
@@ -12,6 +12,7 @@ import {
   getRunsOlderThan,
   getRunsToKeep,
   getToken,
+  getWorkflowNames,
 } from "./lib/params";
 
 /**
@@ -25,12 +26,17 @@ export async function run(): Promise<void> {
     const runsToKeep = getRunsToKeep();
     const olderThanDays = getRunsOlderThan();
     const dryRun = getDryRun();
+    const workflowNames = getWorkflowNames();
 
     if (dryRun) {
       Logger.info("DRY RUN MODE - No runs will be actually deleted");
     }
 
-    const api = getApi({ token, owner, repo, dryRun });
+    if (workflowNames.length > 0) {
+      Logger.info(`Filtering by workflows: ${workflowNames.join(", ")}`);
+    }
+
+    const api = getApi({ token, owner, repo, dryRun, workflowNames });
 
     Logger.info(`Fetching workflow runs for ${owner}/${repo}...`);
     const { runIds, totalRuns, workflowStats } = await api.getRunsToDelete(
@@ -42,7 +48,22 @@ export async function run(): Promise<void> {
 
     if (runIds.length === 0) {
       Logger.info("No runs to delete");
-      Logger.metrics(api.getMetrics());
+      const metrics = api.getMetrics();
+      Logger.metrics(metrics);
+
+      // Export metrics even when no runs to delete
+      setOutput("total-runs-found", totalRuns.toString());
+      setOutput("runs-deleted", "0");
+      setOutput("runs-failed", "0");
+      setOutput("total-api-requests", metrics.totalRequests.toString());
+      setOutput("successful-requests", metrics.successfulRequests.toString());
+      setOutput("failed-requests", metrics.failedRequests.toString());
+      setOutput("retry-attempts", metrics.retries.toString());
+      setOutput("rate-limit-hits", metrics.rateLimitHits.toString());
+      setOutput(
+        "circuit-breaker-trips",
+        metrics.circuitBreakerTrips.toString()
+      );
       return;
     }
 
@@ -80,7 +101,19 @@ export async function run(): Promise<void> {
     }
 
     // Log metrics
-    Logger.metrics(api.getMetrics());
+    const metrics = api.getMetrics();
+    Logger.metrics(metrics);
+
+    // Export metrics as action outputs for use in subsequent steps
+    setOutput("total-runs-found", totalRuns.toString());
+    setOutput("runs-deleted", succeeded.toString());
+    setOutput("runs-failed", failed.toString());
+    setOutput("total-api-requests", metrics.totalRequests.toString());
+    setOutput("successful-requests", metrics.successfulRequests.toString());
+    setOutput("failed-requests", metrics.failedRequests.toString());
+    setOutput("retry-attempts", metrics.retries.toString());
+    setOutput("rate-limit-hits", metrics.rateLimitHits.toString());
+    setOutput("circuit-breaker-trips", metrics.circuitBreakerTrips.toString());
 
     // If there were failures, set action as failed
     if (failed > 0 && !dryRun) {
