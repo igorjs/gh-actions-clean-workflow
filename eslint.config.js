@@ -23,11 +23,11 @@ module.exports = [
   {
     files: ["**/*.js"],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 2024,
       sourceType: "module",
       globals: {
         ...globals.node,
-        ...globals.es2021,
+        ...globals.es2024,
       },
     },
   },
@@ -38,14 +38,14 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        ecmaVersion: 2022,
+        ecmaVersion: 2024,
         sourceType: "module",
         project: "./tsconfig.json",
       },
       globals: {
         ...globals.node,
-        ...globals.es2021,
-        ...globals.jest,
+        ...globals.es2024,
+        ...globals.vitest,
       },
     },
     plugins: {

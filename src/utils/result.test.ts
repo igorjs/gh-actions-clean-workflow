@@ -1,20 +1,18 @@
-import { describe, test, expect, jest } from "@jest/globals";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { Result } from "./result";
 
 describe("Result", () => {
-  let mockExit: ReturnType<typeof jest.spyOn>;
-  let mockConsoleError: ReturnType<typeof jest.spyOn>;
+  let mockExit: ReturnType<typeof vi.spyOn>;
+  let mockConsoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Mock process.exit to prevent test runner from exiting
-    mockExit = jest.spyOn(process, "exit").mockImplementation(((
+    mockExit = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
       throw new Error(`process.exit called with "${code}"`);
     }) as any);
-    mockConsoleError = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {

@@ -1,32 +1,32 @@
-import { describe, test, expect, jest, beforeEach } from "@jest/globals";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import { getApi } from "./api";
 import { getOctokit } from "@actions/github";
 
 // Mock dependencies
-jest.mock("@actions/github");
-jest.mock("node:timers/promises", () => ({
-  setTimeout: jest.fn(() => Promise.resolve()),
+vi.mock("@actions/github");
+vi.mock("node:timers/promises", () => ({
+  setTimeout: vi.fn(() => Promise.resolve()),
 }));
 
-const mockGetOctokit = getOctokit as jest.MockedFunction<typeof getOctokit>;
+const mockGetOctokit = vi.mocked(getOctokit);
 
 describe("api", () => {
   let mockOctokit: any;
-  let mockPaginate: jest.Mock<any>;
-  let mockDeleteWorkflowRun: jest.Mock<any>;
+  let mockPaginate: ReturnType<typeof vi.fn>;
+  let mockDeleteWorkflowRun: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    mockPaginate = jest.fn<any>();
-    mockDeleteWorkflowRun = jest.fn(() => Promise.resolve({}));
+    mockPaginate = vi.fn();
+    mockDeleteWorkflowRun = vi.fn(() => Promise.resolve({}));
 
     mockOctokit = {
       paginate: mockPaginate,
       rest: {
         actions: {
           deleteWorkflowRun: mockDeleteWorkflowRun,
-          listWorkflowRunsForRepo: jest.fn(),
+          listWorkflowRunsForRepo: vi.fn(),
         },
       },
     };
@@ -185,8 +185,8 @@ describe("api", () => {
 
     test("should apply date filter when provided", async () => {
       const mockDate = new Date("2024-01-10T00:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(mockDate);
+      vi.useFakeTimers();
+      vi.setSystemTime(mockDate);
 
       mockPaginate.mockResolvedValue(mockRuns);
 
@@ -205,16 +205,16 @@ describe("api", () => {
         })
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
   describe("Error handling", () => {
     test("should log error details when delete fails", async () => {
-      const consoleInfoSpy = jest
+      const consoleInfoSpy = vi
         .spyOn(console, "info")
         .mockImplementation(() => {});
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
       const error = new Error("Network error");

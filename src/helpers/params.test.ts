@@ -1,4 +1,4 @@
-import { describe, test, expect, jest, beforeEach } from "@jest/globals";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { getInput } from "@actions/core";
 import {
   getToken,
@@ -9,16 +9,16 @@ import {
 } from "./params";
 
 // Mock @actions/core
-jest.mock("@actions/core");
-const mockGetInput = getInput as jest.MockedFunction<typeof getInput>;
+vi.mock("@actions/core");
+const mockGetInput = vi.mocked(getInput);
 
 describe("params", () => {
-  let mockExit: ReturnType<typeof jest.spyOn>;
+  let mockExit: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Mock process.exit to prevent test runner from exiting
-    mockExit = jest.spyOn(process, "exit").mockImplementation(((
+    mockExit = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
       throw new Error(`process.exit called with "${code}"`);
