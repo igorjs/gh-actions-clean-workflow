@@ -1,6 +1,6 @@
 # Clean Workflow Action
 
-[![Test and Lint](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml) [![codecov](https://codecov.io/gh/igorjs/gh-actions-clean-workflow/graph/badge.svg?token=SvXR0ZFpvg)](https://codecov.io/gh/igorjs/gh-actions-clean-workflow)
+[![CI](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml) [![codecov](https://codecov.io/gh/igorjs/gh-actions-clean-workflow/graph/badge.svg?token=SvXR0ZFpvg)](https://codecov.io/gh/igorjs/gh-actions-clean-workflow)
 
 Clean workflow run logs based on configuration with advanced features like retry logic, circuit breaker, rate limiting, and workflow filtering.
 
@@ -12,7 +12,7 @@ Clean workflow run logs based on configuration with advanced features like retry
 - ⏱️ **Rate Limiting**: Built-in API rate limit handling with retry-after support
 - 📊 **Detailed Metrics**: Comprehensive API metrics exported as action outputs
 - 🧪 **Dry Run Mode**: Test your configuration without actually deleting runs
-- 📈 **High Test Coverage**: 98.93% code coverage with 113 tests
+- 📈 **High Test Coverage**: Over 95% code coverage with unit and integration tests
 - ⚡ **Modern Tooling**: Built with TypeScript, Biome.js, and Vitest
 
 ## Usage

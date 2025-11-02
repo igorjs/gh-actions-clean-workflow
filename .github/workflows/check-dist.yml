@@ -37,10 +37,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: "npm"
 
       - name: Install dependencies and Rebuild the dist/ directory
         run: |
-          npm ci
+          npm ci --prefer-offline
           npm run build --if-present
 
       - name: Compare the expected and actual dist/ directories

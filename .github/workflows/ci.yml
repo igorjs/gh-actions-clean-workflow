@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  lint:
+  lint-check:
     name: Lint
     runs-on: ubuntu-latest
     steps:
@@ -32,13 +32,8 @@ jobs:
         run: npm run lint
 
   unit-tests:
-    name: Unit tests (Node ${{ matrix.node-version }} on ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [24.x]
+    name: Unit tests
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -48,7 +43,7 @@ jobs:
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24
           cache: "npm"
       - name: Install dependencies
         run: npm ci --prefer-offline
@@ -77,25 +72,24 @@ jobs:
       - name: Run integration tests
         uses: ./.github/actions/integration-test-suite
 
-  build:
-    name: Build
+  build-check:
+    name: Build Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
+        with:
+          fetch-depth: 0
+          ref: main
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: "npm"
-
       - name: Install dependencies
         run: npm ci --prefer-offline
-
       - name: Build
         run: npm run build
-
       - name: Verify build succeeded
         run: |
           if [ ! -f "dist/index.js" ]; then
@@ -105,12 +99,11 @@ jobs:
           echo "Build completed successfully"
 
   # This job is used as a required check in branch protection rules
-  ci-status:
-    name: CI Status
+  report-ci-status:
+    name: Report CI Status
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, integration-tests, build]
+    needs: [lint-check, unit-tests, integration-tests, build-check]
     if: always()
-
     steps:
       - name: Check CI status
         run: |
