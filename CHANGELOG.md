@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [7.0.0] - 2025-01-03
+## [7] - 2025-01-03
 
 ### Added
 
@@ -115,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added stale issue management
 - Updated GitHub Actions workflow versions
 
-## [6.0.0] - Previous Release
+## [6] - Previous Release
 
 See previous releases for v6.x.x changes.
 
@@ -158,5 +158,5 @@ See previous releases for v6.x.x changes.
     echo "Failed: ${{ steps.clean.outputs.runs-failed }}"
 ```
 
-[7.0.0]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v6...v7.0.0
-[6.0.0]: https://github.com/igorjs/gh-actions-clean-workflow/releases/tag/v6
+[7]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v6...v7
+[6]: https://github.com/igorjs/gh-actions-clean-workflow/releases/tag/v6
