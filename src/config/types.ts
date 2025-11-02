@@ -2,7 +2,7 @@
  * Type definitions for the application
  */
 
-import { CircuitState } from "./constants";
+import type { CircuitState } from "./constants";
 
 /**
  * Represents a GitHub workflow run

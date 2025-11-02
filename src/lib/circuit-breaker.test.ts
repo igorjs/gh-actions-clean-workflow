@@ -1,14 +1,14 @@
-import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
-import { CircuitBreaker } from "./circuit-breaker";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CircuitState } from "../config/constants";
+import { CircuitBreaker } from "./circuit-breaker";
 
 // Mock the logger
 vi.mock("./logger");
 
-import { Logger } from "./logger";
+import * as logger from "./logger";
 
-const mockLoggerInfo = vi.mocked(Logger.info);
-const mockLoggerWarn = vi.mocked(Logger.warn);
+const mockLoggerInfo = vi.mocked(logger.info);
+const mockLoggerWarn = vi.mocked(logger.warn);
 
 describe("CircuitBreaker", () => {
   let circuitBreaker: CircuitBreaker;

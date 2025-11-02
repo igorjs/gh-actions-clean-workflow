@@ -1,12 +1,12 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
 import { getInput } from "@actions/core";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
-  getToken,
+  getDryRun,
   getOwner,
   getRepo,
-  getRunsToKeep,
   getRunsOlderThan,
-  getDryRun,
+  getRunsToKeep,
+  getToken,
 } from "./params";
 
 // Mock @actions/core

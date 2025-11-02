@@ -4,9 +4,9 @@
 
 import { setTimeout } from "node:timers/promises";
 import { API_CONFIG, HTTP_STATUS } from "../config/constants";
-import { Logger } from "./logger";
 import type { ApiMetrics } from "../config/types";
 import type { CircuitBreaker } from "./circuit-breaker";
+import * as logger from "./logger";
 
 /**
  * Error with HTTP status code
@@ -117,7 +117,7 @@ async function handleRateLimitError(
     ? parseInt(retryAfter, 10) * 1000
     : API_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS;
 
-  Logger.warn(`Rate limit hit for ${operationName}, waiting ${waitTime}ms`);
+  logger.warn(`Rate limit hit for ${operationName}, waiting ${waitTime}ms`);
   await setTimeout(waitTime);
   metrics.retries++;
 }
@@ -132,11 +132,11 @@ async function handleRetryableError(
   metrics: ApiMetrics
 ): Promise<void> {
   const delay = Math.min(
-    API_CONFIG.INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt),
+    API_CONFIG.INITIAL_RETRY_DELAY_MS * 2 ** attempt,
     API_CONFIG.MAX_RETRY_DELAY_MS
   );
 
-  Logger.warn(
+  logger.warn(
     `${operationName} failed (attempt ${attempt + 1}/${
       API_CONFIG.MAX_RETRIES + 1
     }), retrying in ${delay}ms: ${error.message}`

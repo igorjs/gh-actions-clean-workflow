@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { run } from "./index";
 
 // Mock all dependencies
@@ -9,12 +9,12 @@ vi.mock("./lib/params");
 import { setFailed, setOutput } from "@actions/core";
 import { getApi } from "./lib/api";
 import {
-  getToken,
+  getDryRun,
   getOwner,
   getRepo,
-  getRunsToKeep,
   getRunsOlderThan,
-  getDryRun,
+  getRunsToKeep,
+  getToken,
   getWorkflowNames,
 } from "./lib/params";
 
@@ -69,9 +69,9 @@ describe("index", () => {
     });
 
     mockGetApi.mockReturnValue({
-      deleteRuns: vi.fn(),
-      getMetrics: vi.fn(),
-      getRunsToDelete: vi.fn(),
+      deleteRuns: mockDeleteRuns,
+      getMetrics: mockGetMetrics,
+      getRunsToDelete: mockGetRunsToDelete,
     });
   });
 

@@ -5,62 +5,57 @@
 import { LOG_PREFIX } from "../config/constants";
 
 /**
- * Logger class for consistent log formatting across the application
+ * Log informational message
  */
-export class Logger {
-  /**
-   * Log informational message
-   */
-  static info(message: string): void {
-    console.info(`${LOG_PREFIX.INFO} ${message}`);
-  }
+export function info(message: string): void {
+  console.info(`${LOG_PREFIX.INFO} ${message}`);
+}
 
-  /**
-   * Log warning message
-   */
-  static warn(message: string): void {
-    console.warn(`${LOG_PREFIX.WARN} ${message}`);
-  }
+/**
+ * Log warning message
+ */
+export function warn(message: string): void {
+  console.warn(`${LOG_PREFIX.WARN} ${message}`);
+}
 
-  /**
-   * Log error message
-   */
-  static error(message: string): void {
-    console.error(`${LOG_PREFIX.ERROR} ${message}`);
-  }
+/**
+ * Log error message
+ */
+export function error(message: string): void {
+  console.error(`${LOG_PREFIX.ERROR} ${message}`);
+}
 
-  /**
-   * Log success message
-   */
-  static success(message: string): void {
-    console.info(`${LOG_PREFIX.SUCCESS} ${message}`);
-  }
+/**
+ * Log success message
+ */
+export function success(message: string): void {
+  console.info(`${LOG_PREFIX.SUCCESS} ${message}`);
+}
 
-  /**
-   * Log dry-run message
-   */
-  static dryRun(message: string): void {
-    console.info(`${LOG_PREFIX.DRY_RUN} ${message}`);
-  }
+/**
+ * Log dry-run message
+ */
+export function dryRun(message: string): void {
+  console.info(`${LOG_PREFIX.DRY_RUN} ${message}`);
+}
 
-  /**
-   * Log API metrics summary
-   */
-  static metrics(metrics: {
-    totalRequests: number;
-    successfulRequests: number;
-    failedRequests: number;
-    retries: number;
-    rateLimitHits: number;
-    circuitBreakerTrips: number;
-  }): void {
-    Logger.info("=== API Metrics ===");
-    Logger.info(`Total API requests: ${metrics.totalRequests}`);
-    Logger.info(`Successful requests: ${metrics.successfulRequests}`);
-    Logger.info(`Failed requests: ${metrics.failedRequests}`);
-    Logger.info(`Retry attempts: ${metrics.retries}`);
-    Logger.info(`Rate limit hits: ${metrics.rateLimitHits}`);
-    Logger.info(`Circuit breaker trips: ${metrics.circuitBreakerTrips}`);
-    Logger.info("==================");
-  }
+/**
+ * Log API metrics summary
+ */
+export function metrics(metrics: {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  retries: number;
+  rateLimitHits: number;
+  circuitBreakerTrips: number;
+}): void {
+  info("=== API Metrics ===");
+  info(`Total API requests: ${metrics.totalRequests}`);
+  info(`Successful requests: ${metrics.successfulRequests}`);
+  info(`Failed requests: ${metrics.failedRequests}`);
+  info(`Retry attempts: ${metrics.retries}`);
+  info(`Rate limit hits: ${metrics.rateLimitHits}`);
+  info(`Circuit breaker trips: ${metrics.circuitBreakerTrips}`);
+  info("==================");
 }

@@ -2,8 +2,8 @@
  * Input parameter validation and retrieval
  */
 
-import { getInput } from "@actions/core";
 import { env } from "node:process";
+import { getInput } from "@actions/core";
 import {
   DEFAULTS,
   ERROR_MESSAGES,

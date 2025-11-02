@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { getApi } from "./api";
 
 // Mock dependencies
@@ -284,6 +284,7 @@ describe("api", () => {
 
     test("should handle paginate errors gracefully", async () => {
       mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: [] };
         throw new Error("API rate limit");
       });
 

@@ -3,8 +3,8 @@
  */
 
 import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../config/constants";
-import { Logger } from "./logger";
 import type { ICircuitBreaker } from "../config/types";
+import * as logger from "./logger";
 
 /**
  * Circuit breaker to protect against cascading failures
@@ -30,7 +30,7 @@ export class CircuitBreaker implements ICircuitBreaker {
     if (this.state === CircuitState.HALF_OPEN) {
       this.successCount++;
       if (this.successCount >= CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD) {
-        Logger.info("Circuit breaker CLOSED - service recovered");
+        logger.info("Circuit breaker CLOSED - service recovered");
         this.state = CircuitState.CLOSED;
         this.successCount = 0;
       }
@@ -49,12 +49,12 @@ export class CircuitBreaker implements ICircuitBreaker {
       this.state === CircuitState.CLOSED &&
       this.failureCount >= CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD
     ) {
-      Logger.warn(
+      logger.warn(
         `Circuit breaker OPEN - too many failures (${this.failureCount})`
       );
       this.state = CircuitState.OPEN;
     } else if (this.state === CircuitState.HALF_OPEN) {
-      Logger.warn("Circuit breaker OPEN - recovery failed");
+      logger.warn("Circuit breaker OPEN - recovery failed");
       this.state = CircuitState.OPEN;
       this.successCount = 0;
     }
@@ -74,7 +74,7 @@ export class CircuitBreaker implements ICircuitBreaker {
     if (this.state === CircuitState.OPEN) {
       const timeSinceLastFailure = Date.now() - (this.lastFailureTime || 0);
       if (timeSinceLastFailure >= CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS) {
-        Logger.info("Circuit breaker HALF_OPEN - testing recovery");
+        logger.info("Circuit breaker HALF_OPEN - testing recovery");
         this.state = CircuitState.HALF_OPEN;
         this.successCount = 0;
         return true;

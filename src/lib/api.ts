@@ -4,11 +4,7 @@
 
 import { setTimeout } from "node:timers/promises";
 import { getOctokit } from "@actions/github";
-
-import { CircuitBreaker } from "./circuit-breaker";
 import { API_CONFIG, CircuitState } from "../config/constants";
-import { Logger } from "./logger";
-import { withRetry } from "./retry";
 import type {
   Api,
   ApiMetrics,
@@ -17,6 +13,9 @@ import type {
   RunsToDeleteResult,
   WorkflowRun,
 } from "../config/types";
+import { CircuitBreaker } from "./circuit-breaker";
+import * as logger from "./logger";
+import { withRetry } from "./retry";
 
 /**
  * Creates and returns an API client instance
@@ -49,13 +48,13 @@ export function getApi(params: ApiParams): Api {
     }
 
     if (dryRun) {
-      Logger.dryRun(`Would delete run #${id}`);
+      logger.dryRun(`Would delete run #${id}`);
       await setTimeout(100); // Simulate API call
       return;
     }
 
     try {
-      Logger.info(`Deleting run #${id}`);
+      logger.info(`Deleting run #${id}`);
       await withRetry(
         () =>
           octokit.rest.actions.deleteWorkflowRun({ owner, repo, run_id: id }),
@@ -63,10 +62,10 @@ export function getApi(params: ApiParams): Api {
         metrics,
         circuitBreaker
       );
-      Logger.success(`Run #${id} was deleted`);
+      logger.success(`Run #${id} was deleted`);
     } catch (err) {
       const errorMessage = err.message || "Unknown error";
-      Logger.error(`Failed to delete run #${id}: ${errorMessage}`);
+      logger.error(`Failed to delete run #${id}: ${errorMessage}`);
       throw err;
     } finally {
       await setTimeout(API_CONFIG.RATE_LIMIT_DELAY_MS);
@@ -95,7 +94,7 @@ export function getApi(params: ApiParams): Api {
       }
 
       if (circuitBreaker.getState() === CircuitState.OPEN) {
-        Logger.warn("Circuit breaker OPEN - stopping further deletions");
+        logger.warn("Circuit breaker OPEN - stopping further deletions");
         failed += runs.length - (i + batch.length);
         break;
       }
@@ -173,7 +172,7 @@ export function getApi(params: ApiParams): Api {
       if (!runsByWorkflow.has(workflowId)) {
         runsByWorkflow.set(workflowId, []);
       }
-      runsByWorkflow.get(workflowId)!.push(run);
+      runsByWorkflow.get(workflowId)?.push(run);
     }
 
     const runIds: number[] = [];
