@@ -1,6 +1,6 @@
 # Clean Workflow Action
 
-[![Test and Lint](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml) [![codecov](https://codecov.io/gh/igorjs/gh-actions-clean-workflow/graph/badge.svg?token=XCKZ5UXEDN)](https://codecov.io/gh/igorjs/gh-actions-clean-workflow)
+[![Test and Lint](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml) [![codecov](https://codecov.io/gh/igorjs/gh-actions-clean-workflow/graph/badge.svg?token=SvXR0ZFpvg)](https://codecov.io/gh/igorjs/gh-actions-clean-workflow)
 
 Clean workflow run logs based on configuration with advanced features like retry logic, circuit breaker, rate limiting, and workflow filtering.
 

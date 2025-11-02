@@ -1,10 +1,11 @@
-name: "No Response"
+# This workflow warns and then closes issues that have had no activity for a specified amount of time.
+name: Close issues with no response
+run-name: "Housekeeping: Close issues with no response"
 
 # Run as a daily cron at 1:45 AM
 on:
   schedule:
     - cron: "45 1 * * *"
-  workflow_dispatch:
 
 jobs:
   no-response:
@@ -13,7 +14,7 @@ jobs:
       issues: "write"
       pull-requests: "write"
     concurrency:
-      group: "${{ github.workflow }}-no-response"
+      group: "${{ github.workflow }}"
       cancel-in-progress: true
     steps:
       - uses: actions/stale@v5
