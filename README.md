@@ -17,7 +17,7 @@ Clean workflow run logs based on configuration with advanced features like retry
 
 ## Usage
 
-Please be aware of the GitHub's API [rate limit](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting).
+Please be aware of the GitHub's API [rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
 
 ### Parameters
 
