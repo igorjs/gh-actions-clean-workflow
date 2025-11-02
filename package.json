@@ -28,7 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@jest/globals": "^30.2.0",
-    "@octokit/types": "^14.0.0",
+    "@octokit/types": "^16.0.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.15.29",
