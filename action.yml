@@ -34,10 +34,36 @@ inputs:
     description: "The amount of latest workflows runs to keep"
     required: false
     default: "0"
+  workflow_names:
+    description: "Comma-separated list of workflow names to filter (empty = all workflows)"
+    required: false
+    default: ""
+  dry_run:
+    description: "Dry run mode - preview deletions without actually deleting"
+    required: false
+    default: "false"
 
 outputs:
   result:
-    description: "The number of workflows deleted"
+    description: "The number of workflows deleted (deprecated, use runs-deleted)"
+  total-runs-found:
+    description: "Total number of workflow runs found"
+  runs-deleted:
+    description: "Number of runs successfully deleted"
+  runs-failed:
+    description: "Number of runs that failed to delete"
+  total-api-requests:
+    description: "Total number of API requests made"
+  successful-requests:
+    description: "Number of successful API requests"
+  failed-requests:
+    description: "Number of failed API requests"
+  retry-attempts:
+    description: "Number of retry attempts"
+  rate-limit-hits:
+    description: "Number of times rate limit was hit"
+  circuit-breaker-trips:
+    description: "Number of times circuit breaker opened"
 
 runs:
   using: "node24"
