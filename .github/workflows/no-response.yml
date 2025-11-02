@@ -18,14 +18,16 @@ jobs:
     steps:
       - uses: actions/stale@v5
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          repo-token: ${{ github.token }}
+          # This workflow does not mark items stale. It only closes items
+          # already labeled 'needs-information' after 14 days of inactivity.
           days-before-stale: -1
           days-before-close: 14
-          stale-issue-label: "status/need-information"
+          stale-issue-label: "needs-information"
           close-issue-message: >-
             This issue was marked as needing more information and has not received a response in 14 days.
             Closing it for now. If you still face this problem, feel free to reopen with more details. Thank you!
-          stale-pr-label: "status/need-information"
+          stale-pr-label: "need-information"
           close-pr-message: >-
             This pull request was marked as needing more information and has had no updates in 14 days.
             Closing it for now. You are welcome to reopen with the required info. Thanks for contributing!
