@@ -1,6 +1,6 @@
 # Clean Workflow Action
 
-[![Test and Lint](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml)
+[![Test and Lint](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/test-and-lint.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml)
 
 Clean workflow run logs based on configuration.
 
