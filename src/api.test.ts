@@ -1,6 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { getApi } from "./api";
-import type { PaginateInterface } from "@octokit/plugin-paginate-rest";
 
 // Mock dependencies
 vi.mock("@actions/github", () => ({
@@ -14,34 +13,22 @@ import { getOctokit } from "@actions/github";
 
 const mockGetOctokit = vi.mocked(getOctokit);
 
-// Create a properly typed mock that matches what getApi expects
-interface MockOctokit {
-  paginate: PaginateInterface;
-  rest: {
-    actions: {
-      deleteWorkflowRun: ReturnType<typeof vi.fn>;
-      listWorkflowRunsForRepo: ReturnType<typeof vi.fn>;
-    };
-  };
-}
-
 describe("api", () => {
-  let mockOctokit: MockOctokit;
-  let mockPaginate: ReturnType<typeof vi.fn>;
   let mockDeleteWorkflowRun: ReturnType<typeof vi.fn>;
   let mockPaginateIterator: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockPaginate = vi.fn();
     mockPaginateIterator = vi.fn();
     mockDeleteWorkflowRun = vi.fn(() => Promise.resolve({}));
 
-    mockOctokit = {
-      paginate: Object.assign(mockPaginate, {
+    // Create a mock octokit with just the properties we actually use
+    // TypeScript will infer the type based on usage in getApi
+    const mockOctokit = {
+      paginate: {
         iterator: mockPaginateIterator,
-      }),
+      },
       rest: {
         actions: {
           deleteWorkflowRun: mockDeleteWorkflowRun,
@@ -50,13 +37,15 @@ describe("api", () => {
       },
     };
 
-    mockGetOctokit.mockReturnValue(mockOctokit);
+    // Use unknown to bypass type checking at the mock boundary
+    // This is acceptable in tests where we control the mock implementation
+    mockGetOctokit.mockReturnValue(mockOctokit as never);
   });
 
   describe("getApi", () => {
     test("should create API instance with provided parameters", () => {
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -64,14 +53,16 @@ describe("api", () => {
       expect(api).toBeDefined();
       expect(api.deleteRuns).toBeDefined();
       expect(api.getRunsToDelete).toBeDefined();
-      expect(mockGetOctokit).toHaveBeenCalledWith("test-token");
+      expect(mockGetOctokit).toHaveBeenCalledWith(
+        "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
     });
   });
 
   describe("deleteRuns", () => {
     test("should successfully delete all runs", async () => {
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -89,6 +80,22 @@ describe("api", () => {
       });
     });
 
+    test("should successfully delete runs in batches", async () => {
+      const api = getApi({
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
+        owner: "test-owner",
+        repo: "test-repo",
+      });
+
+      // Create 25 run IDs to test batching (batch size is 20)
+      const runIds = Array.from({ length: 25 }, (_, i) => i + 1);
+      const result = await api.deleteRuns(runIds);
+
+      expect(result.succeeded).toBe(25);
+      expect(result.failed).toBe(0);
+      expect(mockDeleteWorkflowRun).toHaveBeenCalledTimes(25);
+    });
+
     test("should handle partial failures", async () => {
       mockDeleteWorkflowRun
         .mockResolvedValueOnce({})
@@ -96,7 +103,7 @@ describe("api", () => {
         .mockResolvedValueOnce({});
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -110,7 +117,7 @@ describe("api", () => {
 
     test("should return zero counts for empty array", async () => {
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -140,7 +147,7 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -161,7 +168,7 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -181,7 +188,7 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -199,7 +206,7 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -221,13 +228,14 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
 
       await api.getRunsToDelete(7, 2);
 
+      const mockOctokit = mockGetOctokit.mock.results[0].value;
       expect(mockPaginateIterator).toHaveBeenCalledWith(
         mockOctokit.rest.actions.listWorkflowRunsForRepo,
         expect.objectContaining({
@@ -251,7 +259,7 @@ describe("api", () => {
       mockDeleteWorkflowRun.mockRejectedValue(error);
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });
@@ -273,7 +281,7 @@ describe("api", () => {
       });
 
       const api = getApi({
-        token: "test-token",
+        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
         owner: "test-owner",
         repo: "test-repo",
       });

@@ -18,15 +18,37 @@ describe("params", () => {
   });
 
   describe("getToken", () => {
-    test("should return token when provided", () => {
-      mockGetInput.mockReturnValue("ghp_testtoken123");
+    test("should return token when provided with valid format (ghp_)", () => {
+      mockGetInput.mockReturnValue(
+        "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
 
       const result = getToken();
-      expect(result).toBe("ghp_testtoken123");
+      expect(result).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
       expect(mockGetInput).toHaveBeenCalledWith("token", {
         required: false,
         trimWhitespace: true,
       });
+    });
+
+    test("should return token when provided with valid format (ghs_)", () => {
+      mockGetInput.mockReturnValue(
+        "ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
+
+      const result = getToken();
+      expect(result).toBe("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
+    });
+
+    test("should return token when provided with valid format (github_pat_)", () => {
+      mockGetInput.mockReturnValue(
+        "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
+
+      const result = getToken();
+      expect(result).toBe(
+        "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
     });
 
     test("should throw error when token is empty", () => {
@@ -37,16 +59,25 @@ describe("params", () => {
       );
     });
 
-    test("should return already trimmed token", () => {
-      mockGetInput.mockReturnValue("ghp_testtoken123");
+    test("should throw error when token has invalid format", () => {
+      mockGetInput.mockReturnValue("invalid_token_123");
 
-      const result = getToken();
-      expect(result).toBe("ghp_testtoken123");
+      expect(() => getToken()).toThrow(
+        "[Invalid Parameter] <token> must be a valid GitHub token"
+      );
+    });
+
+    test("should throw error when token is too short", () => {
+      mockGetInput.mockReturnValue("ghp_short");
+
+      expect(() => getToken()).toThrow(
+        "[Invalid Parameter] <token> must be a valid GitHub token"
+      );
     });
   });
 
   describe("getOwner", () => {
-    test("should return owner when provided", () => {
+    test("should return owner when provided with valid format", () => {
       mockGetInput.mockReturnValue("octocat");
 
       const result = getOwner();
@@ -55,6 +86,44 @@ describe("params", () => {
         required: false,
         trimWhitespace: true,
       });
+    });
+
+    test("should accept owner with hyphens", () => {
+      mockGetInput.mockReturnValue("my-org-name");
+
+      const result = getOwner();
+      expect(result).toBe("my-org-name");
+    });
+
+    test("should accept owner with numbers", () => {
+      mockGetInput.mockReturnValue("user123");
+
+      const result = getOwner();
+      expect(result).toBe("user123");
+    });
+
+    test("should throw error for owner starting with hyphen", () => {
+      mockGetInput.mockReturnValue("-invalid");
+
+      expect(() => getOwner()).toThrow(
+        "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      );
+    });
+
+    test("should throw error for owner ending with hyphen", () => {
+      mockGetInput.mockReturnValue("invalid-");
+
+      expect(() => getOwner()).toThrow(
+        "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      );
+    });
+
+    test("should throw error for owner with special characters", () => {
+      mockGetInput.mockReturnValue("invalid@user");
+
+      expect(() => getOwner()).toThrow(
+        "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      );
     });
 
     test("should throw error when owner is empty and no env var", () => {
@@ -78,9 +147,9 @@ describe("params", () => {
   });
 
   describe("getRepo", () => {
-    test("should return repo when provided", () => {
+    test("should return repo when provided with valid format", () => {
       mockGetInput.mockReturnValue("hello-world");
-      process.env.GITHUB_REPOSITORY = "octocat/hello-world"; // Set fallback
+      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
 
       const result = getRepo();
       expect(result).toBe("hello-world");
@@ -88,6 +157,41 @@ describe("params", () => {
         required: false,
         trimWhitespace: true,
       });
+
+      delete process.env.GITHUB_REPOSITORY;
+    });
+
+    test("should accept repo with dots and underscores", () => {
+      mockGetInput.mockReturnValue("my.repo_name");
+      // Set env var to avoid "must be provided" error
+      process.env.GITHUB_REPOSITORY = "owner/my.repo_name";
+
+      const result = getRepo();
+      expect(result).toBe("my.repo_name");
+
+      delete process.env.GITHUB_REPOSITORY;
+    });
+
+    test("should throw error for repo with spaces", () => {
+      mockGetInput.mockReturnValue("");
+      // Set env var with invalid repo name to test validation
+      process.env.GITHUB_REPOSITORY = "owner/invalid repo";
+
+      expect(() => getRepo()).toThrow(
+        "[Invalid Parameter] <repo> must be a valid GitHub repository name"
+      );
+
+      delete process.env.GITHUB_REPOSITORY;
+    });
+
+    test("should throw error for repo with special characters", () => {
+      mockGetInput.mockReturnValue("");
+      // Set env var with invalid repo name to test validation
+      process.env.GITHUB_REPOSITORY = "owner/invalid@repo";
+
+      expect(() => getRepo()).toThrow(
+        "[Invalid Parameter] <repo> must be a valid GitHub repository name"
+      );
 
       delete process.env.GITHUB_REPOSITORY;
     });
@@ -101,8 +205,15 @@ describe("params", () => {
       );
     });
 
+    test("should extract repo name from path with backslash", () => {
+      mockGetInput.mockReturnValue("owner\\repo-name");
+      delete process.env.GITHUB_REPOSITORY;
+
+      const result = getRepo();
+      expect(result).toBe("repo-name");
+    });
+
     test("should not extract repo name from path with forward slash", () => {
-      // The implementation checks for backslash, not forward slash
       mockGetInput.mockReturnValue("owner/repo-name");
       delete process.env.GITHUB_REPOSITORY;
 
@@ -148,6 +259,21 @@ describe("params", () => {
       expect(result).toBe(0);
     });
 
+    test("should accept maximum allowed value (10000)", () => {
+      mockGetInput.mockReturnValue("10000");
+
+      const result = getRunsToKeep();
+      expect(result).toBe(10000);
+    });
+
+    test("should throw error for values exceeding maximum", () => {
+      mockGetInput.mockReturnValue("10001");
+
+      expect(() => getRunsToKeep()).toThrow(
+        "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000"
+      );
+    });
+
     test("should throw error for non-integer values", () => {
       mockGetInput.mockReturnValue("abc");
 
@@ -173,7 +299,7 @@ describe("params", () => {
     });
 
     test("should throw error for unsafe integers", () => {
-      mockGetInput.mockReturnValue("9007199254740992"); // Number.MAX_SAFE_INTEGER + 1
+      mockGetInput.mockReturnValue("9007199254740992");
 
       expect(() => getRunsToKeep()).toThrow(
         "[Invalid Parameter] <runs_to_keep> must be a valid integer"
@@ -207,6 +333,21 @@ describe("params", () => {
       expect(result).toBe(0);
     });
 
+    test("should accept maximum allowed value (3650)", () => {
+      mockGetInput.mockReturnValue("3650");
+
+      const result = getRunsOlderThan();
+      expect(result).toBe(3650);
+    });
+
+    test("should throw error for values exceeding maximum", () => {
+      mockGetInput.mockReturnValue("3651");
+
+      expect(() => getRunsOlderThan()).toThrow(
+        "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days"
+      );
+    });
+
     test("should throw error for negative numbers", () => {
       mockGetInput.mockReturnValue("-5");
 
@@ -233,21 +374,19 @@ describe("params", () => {
 
   describe("Integration scenarios", () => {
     test("should handle all valid parameters", () => {
-      // Clean environment
       delete process.env.GITHUB_REPOSITORY;
       delete process.env.GITHUB_REPOSITORY_OWNER;
 
       mockGetInput
-        .mockReturnValueOnce("ghp_token123") // token
-        .mockReturnValueOnce("octocat") // owner
-        .mockReturnValueOnce("hello-world") // repo
-        .mockReturnValueOnce("10") // runs_to_keep
-        .mockReturnValueOnce("30"); // runs_older_than
+        .mockReturnValueOnce("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF")
+        .mockReturnValueOnce("octocat")
+        .mockReturnValueOnce("hello-world")
+        .mockReturnValueOnce("10")
+        .mockReturnValueOnce("30");
 
-      expect(getToken()).toBe("ghp_token123");
+      expect(getToken()).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
       expect(getOwner()).toBe("octocat");
 
-      // For getRepo to work, we need to set env var since "hello-world" doesn't have backslash
       process.env.GITHUB_REPOSITORY = "octocat/hello-world";
       expect(getRepo()).toBe("hello-world");
       delete process.env.GITHUB_REPOSITORY;

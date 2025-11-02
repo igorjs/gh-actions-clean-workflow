@@ -1,14 +1,14 @@
 import { setFailed } from "@actions/core";
-import { getApi } from "./helpers/api";
+import { getApi } from "./api";
 import {
   getOwner,
   getRepo,
   getRunsOlderThan,
   getRunsToKeep,
   getToken,
-} from "./helpers/params";
+} from "./params";
 
-(async function run() {
+export async function run() {
   try {
     const token = getToken();
     const owner = getOwner();
@@ -60,4 +60,9 @@ import {
     console.error(err);
     setFailed(err.message);
   }
-})();
+}
+
+// Only run if this is the main module (not being imported for testing)
+if (require.main === module) {
+  run();
+}
