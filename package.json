@@ -36,7 +36,7 @@
     "@types/node": "^24.10.1",
     "@vercel/ncc": "^0.38.4",
     "@vitest/coverage-v8": "^4.0.16",
-    "globals": "^16.5.0",
+    "globals": "^17.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
