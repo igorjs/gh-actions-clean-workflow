@@ -35,7 +35,7 @@
     "@octokit/types": "^16.0.0",
     "@types/node": "^24.10.1",
     "@vercel/ncc": "^0.38.4",
-    "@vitest/coverage-v8": "^4.0.14",
+    "@vitest/coverage-v8": "^4.0.16",
     "globals": "^16.5.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
