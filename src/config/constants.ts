@@ -43,7 +43,7 @@ export const VALIDATION_RULES = {
   /** Regex for validating repository name */
   REPO_NAME_REGEX: /^[a-zA-Z0-9._-]+$/,
   /** Regex for validating GitHub token format */
-  TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)[a-zA-Z0-9]{36,}$/,
+  TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)[a-zA-Z0-9_]{36,}$/,
 } as const;
 
 // Log Message Prefixes
