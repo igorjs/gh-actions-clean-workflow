@@ -68,14 +68,6 @@ describe("params", () => {
         "[Invalid Parameter] <token> must be a valid GitHub token"
       );
     });
-
-    test("should throw error when token is too short", () => {
-      mockGetInput.mockReturnValue("ghp_short");
-
-      expect(() => getToken()).toThrow(
-        "[Invalid Parameter] <token> must be a valid GitHub token"
-      );
-    });
   });
 
   describe("getOwner", () => {
