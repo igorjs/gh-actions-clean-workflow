@@ -80,12 +80,11 @@ describe("params", () => {
       );
     });
 
-    test("should throw error when token is too short", () => {
+    test("should return token when token has short body (new GitHub token format)", () => {
       mockGetInput.mockReturnValue("ghp_short");
 
-      expect(() => getToken()).toThrow(
-        "[Invalid Parameter] <token> must be a valid GitHub token"
-      );
+      const result = getToken();
+      expect(result).toBe("ghp_short");
     });
   });
 
