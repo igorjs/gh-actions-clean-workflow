@@ -53,6 +53,17 @@ describe("params", () => {
       );
     });
 
+    test("should return token when github_pat_ token contains underscores in the body", () => {
+      mockGetInput.mockReturnValue(
+        "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      );
+
+      const result = getToken();
+      expect(result).toBe(
+        "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      );
+    });
+
     test("should throw error when token is empty", () => {
       mockGetInput.mockReturnValue("");
 
