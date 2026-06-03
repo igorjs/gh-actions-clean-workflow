@@ -53,6 +53,17 @@ describe("params", () => {
       );
     });
 
+    test("should return token when github_pat_ token contains underscores in the body", () => {
+      mockGetInput.mockReturnValue(
+        "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      );
+
+      const result = getToken();
+      expect(result).toBe(
+        "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      );
+    });
+
     test("should throw error when token is empty", () => {
       mockGetInput.mockReturnValue("");
 
@@ -69,12 +80,11 @@ describe("params", () => {
       );
     });
 
-    test("should throw error when token is too short", () => {
+    test("should return token when token has short body (new GitHub token format)", () => {
       mockGetInput.mockReturnValue("ghp_short");
 
-      expect(() => getToken()).toThrow(
-        "[Invalid Parameter] <token> must be a valid GitHub token"
-      );
+      const result = getToken();
+      expect(result).toBe("ghp_short");
     });
   });
 

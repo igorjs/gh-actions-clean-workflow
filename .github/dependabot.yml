@@ -4,9 +4,14 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /.github/actions/integration-test-suite
+    schedule:
+      interval: weekly
 
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly

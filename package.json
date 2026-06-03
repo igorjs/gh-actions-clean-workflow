@@ -13,7 +13,7 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "ncc build src/index.ts -o dist --minify --no-source-map-register --target es2022 --license licenses.txt",
+    "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -34,10 +34,9 @@
     "@biomejs/biome": "^2.4.16",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.1",
-    "@vercel/ncc": "^0.38.4",
     "@vitest/coverage-v8": "^4.1.8",
     "globals": "^17.6.0",
-    "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.8"
   }

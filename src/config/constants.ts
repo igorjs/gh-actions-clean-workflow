@@ -42,8 +42,8 @@ export const VALIDATION_RULES = {
   WORKFLOW_NAME_REGEX: /^[a-zA-Z0-9 _-]+$/,
   /** Regex for validating repository name */
   REPO_NAME_REGEX: /^[a-zA-Z0-9._-]+$/,
-  /** Regex for validating GitHub token format */
-  TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)[a-zA-Z0-9]{36,}$/,
+  /** Regex for validating GitHub token format — only prefix checked per GitHub's 2026-04-24 guidance */
+  TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)/,
 } as const;
 
 // Log Message Prefixes

@@ -6,15 +6,14 @@ runs:
   using: composite
   steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         fetch-depth: 0
-        ref: main
 
     # Test 1: Basic dry run with default settings
     - name: Run basic dry run
       id: basic
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         runs_older_than: 7
@@ -37,7 +36,7 @@ runs:
     # Test 2: Workflow filtering
     - name: Test workflow name filtering
       id: filter
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         workflow_names: "Test and Lint, Check Dist"
@@ -56,7 +55,7 @@ runs:
     # Test 3: Keep all recent runs (runs_to_keep = 100)
     - name: Test keeping many runs
       id: keep-many
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         runs_older_than: 7
@@ -73,7 +72,7 @@ runs:
     # Test 4: Delete all old runs (runs_to_keep = 0)
     - name: Test deleting all old runs
       id: delete-all
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         runs_older_than: 90
@@ -90,7 +89,7 @@ runs:
     # Test 5: Short retention period
     - name: Test short retention
       id: short
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         runs_older_than: 1
@@ -107,7 +106,7 @@ runs:
     # Test 6: Combined filtering and retention
     - name: Test combined features
       id: combined
-      uses: igorjs/gh-actions-clean-workflow@main
+      uses: ./
       with:
         dry_run: true
         workflow_names: "Clean Logs, Dependabot"
