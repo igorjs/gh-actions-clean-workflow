@@ -136,7 +136,4 @@ export async function run(): Promise<void> {
   }
 }
 
-// Only run if this is the main module (not being imported for testing)
-if (require.main === module) {
-  run();
-}
+run();

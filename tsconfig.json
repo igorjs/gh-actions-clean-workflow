@@ -2,8 +2,8 @@
   "compilerOptions": {
     "lib": ["ES2024"],
     "target": "ES2024",
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "Bundler",
+    "moduleResolution": "Bundler",
     "isolatedModules": true,
     "types": ["vitest/globals"]
   },
