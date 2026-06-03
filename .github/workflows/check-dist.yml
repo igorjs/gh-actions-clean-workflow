@@ -14,27 +14,28 @@ on:
       - "**.md"
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 jobs:
   check-dist:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: github.event_name == 'push'
         with:
           fetch-depth: 0
 
       - name: Set Node.js 24.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 24
           cache: "npm"
@@ -54,8 +55,7 @@ jobs:
             exit 1
           fi
 
-      # If index.js was different than expected, upload the expected version as an artifact
-      - name: Commit files # commit the new dist folder
+      - name: Commit files
         if: ${{ steps.diff.outcome == 'failure' }}
         run: |
           git config --local user.email "igorjs@users.noreply.github.com"

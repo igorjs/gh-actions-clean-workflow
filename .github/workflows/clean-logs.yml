@@ -27,7 +27,6 @@ on:
         required: false
 
 jobs:
-  # Manual/Scheduled execution (actual cleanup)
   clean-logs:
     name: "Clean Logs (Manual)"
     runs-on: ubuntu-latest
@@ -36,10 +35,9 @@ jobs:
       actions: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          ref: main
 
       - name: Clean workflow runs
         id: clean
@@ -68,5 +66,5 @@ jobs:
       - name: Check for failures
         if: steps.clean.outputs.runs-failed != '0'
         run: |
-          echo "⚠️ Warning: ${{ steps.clean.outputs.runs-failed }} runs failed to delete"
+          echo "Warning: ${{ steps.clean.outputs.runs-failed }} runs failed to delete"
           echo "Check the logs above for details"

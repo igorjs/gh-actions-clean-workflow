@@ -9,15 +9,15 @@ on:
 
 jobs:
   no-response:
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     permissions:
-      issues: "write"
-      pull-requests: "write"
+      issues: write
+      pull-requests: write
     concurrency:
       group: "${{ github.workflow }}"
       cancel-in-progress: true
     steps:
-      - uses: actions/stale@v10
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10
         with:
           repo-token: ${{ github.token }}
           # This workflow does not mark items stale. It only closes items
