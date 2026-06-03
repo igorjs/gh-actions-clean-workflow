@@ -13,7 +13,7 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "tsup src/index.ts --format cjs --outDir dist --minify --no-splitting --target node24",
+    "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
