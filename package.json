@@ -31,7 +31,7 @@
     "@actions/github": "^9.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.4.16",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.6.0",
     "@vercel/ncc": "^0.38.4",
