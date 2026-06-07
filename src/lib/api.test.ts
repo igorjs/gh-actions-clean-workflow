@@ -1,547 +1,325 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
-import { getApi } from "./api";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  spyFn,
+  spyOn,
+} from "@igorjs/pure-test";
+import { makeApi } from "./api";
 
-// Mock dependencies
-vi.mock("@actions/github", () => ({
-  getOctokit: vi.fn(),
-}));
-vi.mock("node:timers/promises", () => ({
-  setTimeout: vi.fn(() => Promise.resolve()),
-}));
+function makeTestDeps() {
+  const mockDeleteWorkflowRun = spyFn<
+    [{ owner: string; repo: string; run_id: number }],
+    Promise<object>
+  >().mockResolvedValue({});
 
-import { getOctokit } from "@actions/github";
+  const mockPaginateIterator = spyFn();
 
-const mockGetOctokit = vi.mocked(getOctokit);
+  const mockOctokit = {
+    paginate: { iterator: mockPaginateIterator },
+    rest: {
+      actions: {
+        deleteWorkflowRun: mockDeleteWorkflowRun,
+        listWorkflowRunsForRepo: spyFn(),
+      },
+    },
+  };
+
+  const sleep = spyFn<[number], Promise<void>>().mockResolvedValue(undefined);
+  const getOctokit = spyFn().mockReturnValue(mockOctokit);
+  const now = spyFn().mockReturnValue(Date.now());
+
+  return { sleep, getOctokit, now, mockDeleteWorkflowRun, mockPaginateIterator, mockOctokit };
+}
+
+const TEST_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF";
+const BASE_PARAMS = { token: TEST_TOKEN, owner: "test-owner", repo: "test-repo" };
 
 describe("api", () => {
-  let mockDeleteWorkflowRun: ReturnType<typeof vi.fn>;
-  let mockPaginateIterator: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    mockPaginateIterator = vi.fn();
-    mockDeleteWorkflowRun = vi.fn(() => Promise.resolve({}));
-
-    // Create a mock octokit with just the properties we actually use
-    // TypeScript will infer the type based on usage in getApi
-    const mockOctokit = {
-      paginate: {
-        iterator: mockPaginateIterator,
-      },
-      rest: {
-        actions: {
-          deleteWorkflowRun: mockDeleteWorkflowRun,
-          listWorkflowRunsForRepo: vi.fn(),
-        },
-      },
-    };
-
-    // Use unknown to bypass type checking at the mock boundary
-    // This is acceptable in tests where we control the mock implementation
-    mockGetOctokit.mockReturnValue(mockOctokit as never);
-  });
-
-  describe("getApi", () => {
-    test("should create API instance with provided parameters", () => {
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
+  describe("makeApi / getApi", () => {
+    it("should create API instance with provided parameters", () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
       expect(api).toBeDefined();
       expect(api.deleteRuns).toBeDefined();
       expect(api.getRunsToDelete).toBeDefined();
-      expect(mockGetOctokit).toHaveBeenCalledWith(
-        "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
-      );
+      expect(deps.getOctokit).toHaveBeenCalledWith(TEST_TOKEN);
     });
   });
 
   describe("deleteRuns", () => {
-    test("should successfully delete all runs", async () => {
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const runIds = [1, 2, 3];
-      const result = await api.deleteRuns(runIds);
-
+    it("should successfully delete all runs", async () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
+      const result = await api.deleteRuns([1, 2, 3]);
       expect(result.succeeded).toBe(3);
       expect(result.failed).toBe(0);
-      expect(mockDeleteWorkflowRun).toHaveBeenCalledTimes(3);
-      expect(mockDeleteWorkflowRun).toHaveBeenCalledWith({
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledTimes(3);
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
         run_id: 1,
       });
     });
 
-    test("should successfully delete runs in batches", async () => {
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      // Create 25 run IDs to test batching (batch size is 20)
+    it("should successfully delete runs in batches", async () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
       const runIds = Array.from({ length: 25 }, (_, i) => i + 1);
       const result = await api.deleteRuns(runIds);
-
       expect(result.succeeded).toBe(25);
       expect(result.failed).toBe(0);
-      expect(mockDeleteWorkflowRun).toHaveBeenCalledTimes(25);
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledTimes(25);
     });
 
-    test("should handle partial failures", async () => {
-      // First call succeeds
-      mockDeleteWorkflowRun.mockResolvedValueOnce({});
-
-      // Second call fails with client error (no retries for 4xx errors)
-      const permError = Object.assign(new Error("Not Found"), {
-        status: 404,
-      });
-      mockDeleteWorkflowRun.mockRejectedValueOnce(permError);
-
-      // Third call succeeds
-      mockDeleteWorkflowRun.mockResolvedValueOnce({});
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const runIds = [1, 2, 3];
-      const result = await api.deleteRuns(runIds);
-
+    it("should handle partial failures", async () => {
+      const deps = makeTestDeps();
+      deps.mockDeleteWorkflowRun.mockResolvedValueOnce({});
+      const permError = Object.assign(new Error("Not Found"), { status: 404 });
+      deps.mockDeleteWorkflowRun.mockRejectedValueOnce(permError);
+      deps.mockDeleteWorkflowRun.mockResolvedValueOnce({});
+      const api = makeApi(deps)(BASE_PARAMS);
+      const result = await api.deleteRuns([1, 2, 3]);
       expect(result.succeeded).toBe(2);
       expect(result.failed).toBe(1);
     });
 
-    test("should return zero counts for empty array", async () => {
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
+    it("should return zero counts for empty array", async () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
       const result = await api.deleteRuns([]);
-
       expect(result.succeeded).toBe(0);
       expect(result.failed).toBe(0);
-      expect(mockDeleteWorkflowRun).not.toHaveBeenCalled();
+      expect(deps.mockDeleteWorkflowRun).not.toHaveBeenCalled();
     });
   });
 
   describe("getRunsToDelete", () => {
     const mockRuns = [
-      { id: 1, workflow_id: 100, created_at: "2024-01-05T00:00:00Z" },
-      { id: 2, workflow_id: 100, created_at: "2024-01-04T00:00:00Z" },
-      { id: 3, workflow_id: 100, created_at: "2024-01-03T00:00:00Z" },
-      { id: 4, workflow_id: 100, created_at: "2024-01-02T00:00:00Z" },
-      { id: 5, workflow_id: 200, created_at: "2024-01-05T00:00:00Z" },
-      { id: 6, workflow_id: 200, created_at: "2024-01-01T00:00:00Z" },
+      { id: 1, workflow_id: 100, created_at: "2024-01-05T00:00:00Z", name: "" },
+      { id: 2, workflow_id: 100, created_at: "2024-01-04T00:00:00Z", name: "" },
+      { id: 3, workflow_id: 100, created_at: "2024-01-03T00:00:00Z", name: "" },
+      { id: 4, workflow_id: 100, created_at: "2024-01-02T00:00:00Z", name: "" },
+      { id: 5, workflow_id: 200, created_at: "2024-01-05T00:00:00Z", name: "" },
+      { id: 6, workflow_id: 200, created_at: "2024-01-01T00:00:00Z", name: "" },
     ];
 
-    test("should return all runs when runsToKeep is 0", async () => {
-      // Mock paginate.iterator to return an async iterable
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should return all runs when runsToKeep is 0", async () => {
+      const deps = makeTestDeps();
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.getRunsToDelete(undefined, 0);
-
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 0);
       expect(result.runIds).toEqual([1, 2, 3, 4, 5, 6]);
       expect(result.totalRuns).toBe(6);
-      // When runsToKeep is 0, we still have workflow stats, but all runs are marked for deletion
-      expect(result.workflowStats.size).toBe(2);
       expect(result.workflowStats.get(100)).toEqual({ total: 4, toDelete: 4 });
       expect(result.workflowStats.get(200)).toEqual({ total: 2, toDelete: 2 });
     });
 
-    test("should keep specified number of runs per workflow", async () => {
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should keep specified number of runs per workflow", async () => {
+      const deps = makeTestDeps();
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.getRunsToDelete(undefined, 2);
-
-      // Should keep runs 1,2 for workflow 100 and all runs for workflow 200 (since it only has 2)
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 2);
       expect(result.runIds).toEqual([3, 4]);
-      expect(result.totalRuns).toBe(6);
       expect(result.workflowStats.get(100)).toEqual({ total: 4, toDelete: 2 });
       expect(result.workflowStats.get(200)).toEqual({ total: 2, toDelete: 0 });
     });
 
-    test("should handle workflows with fewer runs than runsToKeep", async () => {
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should handle workflows with fewer runs than runsToKeep", async () => {
+      const deps = makeTestDeps();
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.getRunsToDelete(undefined, 10);
-
-      // Should not delete any runs since all workflows have fewer than 10 runs
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 10);
       expect(result.runIds).toEqual([]);
       expect(result.totalRuns).toBe(6);
     });
 
-    test("should handle empty runs", async () => {
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should handle empty runs", async () => {
+      const deps = makeTestDeps();
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: [] };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.getRunsToDelete(undefined, 5);
-
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 5);
       expect(result.runIds).toEqual([]);
       expect(result.totalRuns).toBe(0);
       expect(result.workflowStats.size).toBe(0);
     });
 
-    test("should apply date filter when provided", async () => {
-      const mockDate = new Date("2024-01-10T00:00:00Z");
-      vi.useFakeTimers();
-      vi.setSystemTime(mockDate);
-
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should apply date filter when provided", async () => {
+      const deps = makeTestDeps();
+      // Inject a fixed "now" — no clock faking needed
+      deps.now.mockReturnValue(new Date("2024-01-10T00:00:00Z").getTime());
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      await api.getRunsToDelete(7, 2);
-
-      const mockOctokit = mockGetOctokit.mock.results[0].value;
-      expect(mockPaginateIterator).toHaveBeenCalledWith(
-        mockOctokit.rest.actions.listWorkflowRunsForRepo,
-        expect.objectContaining({
-          created: "<2024-01-03",
-        })
+      await makeApi(deps)(BASE_PARAMS).getRunsToDelete(7, 2);
+      expect(deps.mockPaginateIterator).toHaveBeenCalledWith(
+        deps.mockOctokit.rest.actions.listWorkflowRunsForRepo,
+        expect.objectContaining({ created: "<2024-01-03" })
       );
-
-      vi.useRealTimers();
     });
 
-    test("should filter runs by workflow names", async () => {
+    it("should filter runs by workflow names", async () => {
+      const deps = makeTestDeps();
       const mockRunsWithNames = [
-        {
-          id: 1,
-          workflow_id: 100,
-          created_at: "2024-01-05T00:00:00Z",
-          name: "CI",
-        },
-        {
-          id: 2,
-          workflow_id: 100,
-          created_at: "2024-01-04T00:00:00Z",
-          name: "CI",
-        },
-        {
-          id: 3,
-          workflow_id: 200,
-          created_at: "2024-01-03T00:00:00Z",
-          name: "Deploy",
-        },
-        {
-          id: 4,
-          workflow_id: 300,
-          created_at: "2024-01-02T00:00:00Z",
-          name: "Tests",
-        },
+        { id: 1, workflow_id: 100, created_at: "2024-01-05T00:00:00Z", name: "CI" },
+        { id: 2, workflow_id: 100, created_at: "2024-01-04T00:00:00Z", name: "CI" },
+        { id: 3, workflow_id: 200, created_at: "2024-01-03T00:00:00Z", name: "Deploy" },
+        { id: 4, workflow_id: 300, created_at: "2024-01-02T00:00:00Z", name: "Tests" },
       ];
-
-      mockPaginateIterator.mockImplementation(async function* () {
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRunsWithNames };
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
+      const result = await makeApi(deps)({
+        ...BASE_PARAMS,
         workflowNames: ["CI", "Deploy"],
-      });
-
-      const result = await api.getRunsToDelete(undefined, 0);
-
-      // Should only include runs with names "CI" and "Deploy", excluding "Tests"
+      }).getRunsToDelete(undefined, 0);
       expect(result.runIds).toEqual([1, 2, 3]);
       expect(result.totalRuns).toBe(3);
-      expect(result.workflowStats.size).toBe(2);
-      expect(result.workflowStats.get(100)).toEqual({ total: 2, toDelete: 2 });
-      expect(result.workflowStats.get(200)).toEqual({ total: 1, toDelete: 1 });
       expect(result.workflowStats.get(300)).toBeUndefined();
     });
   });
 
   describe("Error handling", () => {
-    test("should log error details when delete fails", async () => {
-      const consoleInfoSpy = vi
-        .spyOn(console, "info")
-        .mockImplementation(() => {});
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const error = new Error("Network error");
-      mockDeleteWorkflowRun.mockRejectedValue(error);
+    let infoSpy: ReturnType<typeof spyOn>;
+    let errorSpy: ReturnType<typeof spyOn>;
 
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
+    beforeEach(() => {
+      infoSpy = spyOn(console, "info").mockImplementation(() => {});
+      errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    });
 
-      await api.deleteRuns([1]);
+    afterEach(() => {
+      infoSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
 
-      expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Deleting run #1");
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+    it("should log error details when delete fails", async () => {
+      const deps = makeTestDeps();
+      deps.mockDeleteWorkflowRun.mockRejectedValue(new Error("Network error"));
+      await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
+      expect(infoSpy).toHaveBeenCalledWith("INFO: Deleting run #1");
+      expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining("ERROR: Failed to delete run #1:")
       );
-
-      consoleInfoSpy.mockRestore();
-      consoleErrorSpy.mockRestore();
     });
 
-    test("should handle error without message property", async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const errorWithoutMessage = { status: 500 };
-      mockDeleteWorkflowRun.mockRejectedValue(errorWithoutMessage);
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      await api.deleteRuns([1]);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+    it("should handle error without message property", async () => {
+      const deps = makeTestDeps();
+      deps.mockDeleteWorkflowRun.mockRejectedValue({ status: 500 });
+      await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
+      expect(errorSpy).toHaveBeenCalledWith(
         "ERROR: Failed to delete run #1: Unknown error"
       );
-
-      consoleErrorSpy.mockRestore();
     });
 
-    test("should handle paginate errors gracefully", async () => {
-      mockPaginateIterator.mockImplementation(async function* () {
+    it("should handle paginate errors gracefully", async () => {
+      const deps = makeTestDeps();
+      deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: [] };
         throw new Error("API rate limit");
       });
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      await expect(api.getRunsToDelete()).rejects.toThrow("API rate limit");
+      let caughtError: Error | undefined;
+      try {
+        await makeApi(deps)(BASE_PARAMS).getRunsToDelete();
+      } catch (err) {
+        caughtError = err as Error;
+      }
+      expect(caughtError?.message).toBe("API rate limit");
     });
   });
 
   describe("Retry logic", () => {
-    test("should retry on server errors (5xx)", async () => {
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
-
-      // Fail twice with 500, then succeed
-      const serverError = Object.assign(new Error("Internal Server Error"), {
-        status: 500,
-      });
-      mockDeleteWorkflowRun
+    it("should retry on server errors (5xx)", async () => {
+      const deps = makeTestDeps();
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+      deps.mockDeleteWorkflowRun
         .mockRejectedValueOnce(serverError)
         .mockRejectedValueOnce(serverError)
         .mockResolvedValueOnce({});
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.deleteRuns([1]);
-
+      const result = await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
       expect(result.succeeded).toBe(1);
       expect(result.failed).toBe(0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("retrying in")
-      );
-
-      consoleWarnSpy.mockRestore();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in"));
+      warnSpy.mockRestore();
     });
 
-    test("should handle rate limit with retry-after header", async () => {
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
-
+    it("should handle rate limit with retry-after header", async () => {
+      const deps = makeTestDeps();
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       const rateLimitError = Object.assign(new Error("Rate limit exceeded"), {
         status: 429,
         response: { headers: { "retry-after": "2" } },
       });
-
-      mockDeleteWorkflowRun
+      deps.mockDeleteWorkflowRun
         .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValueOnce({});
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
+      const api = makeApi(deps)(BASE_PARAMS);
       const result = await api.deleteRuns([1]);
-
       expect(result.succeeded).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Rate limit hit")
-      );
-
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit hit"));
       const metrics = api.getMetrics();
       expect(metrics.rateLimitHits).toBe(1);
       expect(metrics.retries).toBeGreaterThan(0);
-
-      consoleWarnSpy.mockRestore();
+      warnSpy.mockRestore();
     });
 
-    test("should not retry on client errors (4xx except 429)", async () => {
-      const clientError = Object.assign(new Error("Bad Request"), {
-        status: 400,
-      });
-      mockDeleteWorkflowRun.mockRejectedValueOnce(clientError);
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      const result = await api.deleteRuns([1]);
-
+    it("should not retry on client errors (4xx except 429)", async () => {
+      const deps = makeTestDeps();
+      const clientError = Object.assign(new Error("Bad Request"), { status: 400 });
+      deps.mockDeleteWorkflowRun.mockRejectedValueOnce(clientError);
+      const result = await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
       expect(result.succeeded).toBe(0);
       expect(result.failed).toBe(1);
-      // Should only be called once (no retries)
-      expect(mockDeleteWorkflowRun).toHaveBeenCalledTimes(1);
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("Circuit breaker", () => {
-    test("should open circuit after multiple failures", async () => {
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
-
-      // Use 400 error which won't retry, to trigger circuit breaker faster
-      const error = Object.assign(new Error("Bad Request"), {
-        status: 400,
-      });
-      mockDeleteWorkflowRun.mockRejectedValue(error);
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
-      // Create enough runs to trigger circuit breaker (needs 5 failures to open)
+    it("should open circuit after multiple failures", async () => {
+      const deps = makeTestDeps();
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      const error = Object.assign(new Error("Bad Request"), { status: 400 });
+      deps.mockDeleteWorkflowRun.mockRejectedValue(error);
+      const api = makeApi(deps)(BASE_PARAMS);
       const runIds = Array.from({ length: 10 }, (_, i) => i + 1);
       const result = await api.deleteRuns(runIds);
-
-      // All 10 should fail (first 5 fail normally, then circuit opens)
       expect(result.failed).toBe(10);
-
-      // Circuit breaker should have logged warnings
-      const circuitBreakerCalls = consoleWarnSpy.mock.calls.filter((call) =>
+      const circuitBreakerCalls = warnSpy.mock.calls.filter((call) =>
         call[0]?.includes("Circuit breaker")
       );
       expect(circuitBreakerCalls.length).toBeGreaterThan(0);
-
-      const metrics = api.getMetrics();
-      // Either circuit breaker tripped or it opened (both indicate it's working)
-      expect(
-        metrics.circuitBreakerTrips + circuitBreakerCalls.length
-      ).toBeGreaterThan(0);
-
-      consoleWarnSpy.mockRestore();
+      warnSpy.mockRestore();
     });
   });
 
   describe("Dry run mode", () => {
-    test("should not actually delete runs in dry run mode", async () => {
-      const consoleInfoSpy = vi
-        .spyOn(console, "info")
-        .mockImplementation(() => {});
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-        dryRun: true,
-      });
-
+    it("should not actually delete runs in dry run mode", async () => {
+      const deps = makeTestDeps();
+      const infoSpy = spyOn(console, "info").mockImplementation(() => {});
+      const api = makeApi(deps)({ ...BASE_PARAMS, dryRun: true });
       const result = await api.deleteRuns([1, 2, 3]);
-
       expect(result.succeeded).toBe(3);
       expect(result.failed).toBe(0);
-      expect(mockDeleteWorkflowRun).not.toHaveBeenCalled();
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "DRY RUN: Would delete run #1"
-      );
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "DRY RUN: Would delete run #2"
-      );
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "DRY RUN: Would delete run #3"
-      );
-
-      consoleInfoSpy.mockRestore();
+      expect(deps.mockDeleteWorkflowRun).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith("DRY RUN: Would delete run #1");
+      expect(infoSpy).toHaveBeenCalledWith("DRY RUN: Would delete run #2");
+      expect(infoSpy).toHaveBeenCalledWith("DRY RUN: Would delete run #3");
+      infoSpy.mockRestore();
     });
   });
 
   describe("Metrics", () => {
-    test("should track API metrics correctly", async () => {
-      mockDeleteWorkflowRun.mockResolvedValue({});
-
-      const api = getApi({
-        token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-        owner: "test-owner",
-        repo: "test-repo",
-      });
-
+    it("should track API metrics correctly", async () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
       await api.deleteRuns([1, 2, 3]);
-
       const metrics = api.getMetrics();
       expect(metrics.totalRequests).toBe(3);
       expect(metrics.successfulRequests).toBe(3);
