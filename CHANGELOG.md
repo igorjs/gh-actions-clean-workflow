@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 
-- **Minimum Node.js version**: Increased to 24.0.0 (from 20.x)
+- **Minimum Node.js version**: Increased to 26.0.0 (from 20.x)
 - **Tooling Migration**: Migrated from ESLint + Prettier to Biome.js
   - Development workflow changes for contributors
   - New npm scripts: `check`, `check:fix` instead of `lint` and `format`
@@ -241,7 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### From v6 to v7
 
 **Breaking Changes:**
-- Update your Node.js version to 24.0.0 or higher
+- Update your Node.js version to 26.0.0 or higher
 - If contributing, migrate from ESLint/Prettier to Biome.js
 
 **New Features (Optional):**
