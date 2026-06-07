@@ -275,23 +275,24 @@ Filter deletions to specific workflows:
 ### Prerequisites
 
 - Node.js >= 26.0.0
-- npm >= 10.0.0
+- pnpm >= 11.5.2 (enforced via `packageManager` field - use [Corepack](https://nodejs.org/api/corepack.html))
 
 ### Setup
 
 ```bash
-npm install
+corepack enable
+pnpm install
 ```
 
 ### Commands
 
 ```bash
-npm run check         # Run Biome linting and formatting checks
-npm run check:fix     # Auto-fix Biome issues
-npm run test          # Run tests
-npm run test:coverage # Run tests with coverage report
-npm run build         # Build the action
-npm run all           # Run all checks, tests, and build
+pnpm run check         # Run Biome linting and formatting checks
+pnpm run check:fix     # Auto-fix Biome issues
+pnpm run test          # Run tests
+pnpm run test:coverage # Run tests with coverage report
+pnpm run build         # Build the action
+pnpm run all           # Run all checks, tests, and build
 ```
 
 ### Testing
