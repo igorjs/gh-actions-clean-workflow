@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies and Rebuild the dist/ directory
         run: |
           pnpm install --frozen-lockfile
-          pnpm run build --if-present
+          pnpm run build
 
       - name: Compare the expected and actual dist/ directories
         run: |
