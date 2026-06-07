@@ -274,7 +274,7 @@ Filter deletions to specific workflows:
 
 ### Prerequisites
 
-- Node.js >= 24.0.0
+- Node.js >= 26.0.0
 - npm >= 10.0.0
 
 ### Setup
@@ -310,7 +310,7 @@ The project has comprehensive test coverage (98.93%):
 v7 is a major version with breaking changes and new features:
 
 **Breaking Changes:**
-- Minimum Node.js version increased to 24.0.0
+- Minimum Node.js version increased to 26.0.0
 - Migrated from ESLint + Prettier to Biome.js
 - Logger class converted to individual functions (internal)
 
