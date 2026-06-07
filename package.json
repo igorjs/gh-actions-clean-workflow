@@ -16,10 +16,10 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=cjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=esm",
+    "test": "NODE_OPTIONS='--import tsx/esm' pure-test src/index.test.ts src/lib/api.test.ts src/lib/circuit-breaker.test.ts src/lib/params.test.ts",
+    "test:watch": "NODE_OPTIONS='--import tsx/esm' pure-test src/index.test.ts src/lib/api.test.ts src/lib/circuit-breaker.test.ts src/lib/params.test.ts --watch",
+    "test:coverage": "c8 --config=.c8rc.json pnpm run test",
     "all": "pnpm run check && pnpm run test && pnpm run build"
   },
   "keywords": [
@@ -38,12 +38,10 @@
     "@igorjs/pure-test": "^0.4.2",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.2",
-    "@vitest/coverage-v8": "^4.1.8",
     "c8": "^11.0.0",
     "esbuild": "^0.27.7",
     "globals": "^17.6.0",
     "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^6.0.3"
   }
 }

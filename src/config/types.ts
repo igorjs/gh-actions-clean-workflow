@@ -114,33 +114,6 @@ export interface Api {
   getMetrics(): ApiMetrics;
 }
 
-/**
- * Circuit breaker interface for managing failure states
- */
-export interface ICircuitBreaker {
-  /**
-   * Record a successful operation
-   */
-  recordSuccess(): void;
-
-  /**
-   * Record a failed operation
-   */
-  recordFailure(): void;
-
-  /**
-   * Check if operation can be executed
-   * @returns true if circuit allows execution
-   */
-  canExecute(): boolean;
-
-  /**
-   * Get current circuit state
-   * @returns Current state of the circuit
-   */
-  getState(): CircuitState;
-}
-
 export type Sleep = (ms: number) => Promise<void>;
 
 export type OctokitInstance = ReturnType<typeof getOctokit>;
