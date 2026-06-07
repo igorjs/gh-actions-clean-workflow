@@ -2,6 +2,7 @@
  * Type definitions for the application
  */
 
+import type { getOctokit } from "@actions/github";
 import type { CircuitState } from "./constants";
 
 /**
@@ -139,3 +140,48 @@ export interface ICircuitBreaker {
    */
   getState(): CircuitState;
 }
+
+export type Sleep = (ms: number) => Promise<void>;
+
+export type OctokitInstance = ReturnType<typeof getOctokit>;
+
+export type ParamsDeps = {
+  getInput: (
+    name: string,
+    opts?: { required?: boolean; trimWhitespace?: boolean }
+  ) => string;
+};
+
+export type Params = {
+  getToken: () => string;
+  getOwner: () => string;
+  getRepo: () => string;
+  getRunsToKeep: () => number;
+  getRunsOlderThan: () => number;
+  getDryRun: () => boolean;
+  getWorkflowNames: () => string[];
+};
+
+export type RetryDeps = {
+  sleep: Sleep;
+};
+
+export type ApiDeps = {
+  getOctokit: (token: string) => OctokitInstance;
+  sleep: Sleep;
+  now: () => number;
+};
+
+export type CircuitBreakerHandle = {
+  canExecute: () => boolean;
+  recordSuccess: () => void;
+  recordFailure: () => void;
+  getState: () => CircuitState;
+};
+
+export type RunEnv = {
+  params: Params;
+  getApi: (params: ApiParams) => Api;
+  setFailed: (msg: string) => void;
+  setOutput: (name: string, value: string) => void;
+};
