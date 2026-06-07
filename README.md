@@ -259,7 +259,7 @@ Prevents cascading failures and API abuse:
 Built-in rate limit handling:
 - Respects GitHub API rate limits
 - Honors `Retry-After` headers
-- 100ms delay between deletions
+- 350ms delay between deletions
 - Metrics tracked via `rate-limit-hits` output
 
 ### Workflow Filtering

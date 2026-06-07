@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Token validation now accepts `ghs_` installation tokens in the new JWT stateless format
+  (dots and dashes in token body), rolled out by GitHub on 2026-04-27. Validation now
+  checks only the token prefix per GitHub's 2026-04-24 guidance, treating the body as opaque.
+- Corrected documented rate-limit delay from 100ms to 350ms to match actual behaviour.
+
 ## [7] - 2025-11-03
 
 ### Added
@@ -32,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No retries on 4xx client errors (except 429)
 - **Rate Limit Handling**: Built-in GitHub API rate limit support
   - Respects `Retry-After` headers
-  - 100ms delay between deletions
+  - 350ms delay between deletions
   - Automatic retry on rate limit errors
 - **Comprehensive Test Suite**: Increased test coverage from ~70% to 98.93%
   - 113 tests across 4 test suites
