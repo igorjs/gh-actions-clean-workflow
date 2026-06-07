@@ -1,0 +1,68 @@
+name: OpenSSF Scorecard
+
+# Publishes the project's OpenSSF Scorecard rating (binary-artifacts,
+# branch-protection, code-review, contributors, dependency-update-tool,
+# CI-tests, license, maintained, packaging, pinned-dependencies, SAST,
+# security-policy, signed-releases, token-permissions, webhooks).
+# Results push to https://api.scorecard.dev/ and surface as a README
+# badge. Weekly refresh + on every push to main + when branch protection
+# changes.
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "0 6 * * 1"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required by scorecard-action; scoped per job rather than
+      # workflow-wide so the schedule trigger doesn't inherit
+      # write access on unrelated runs.
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          # Kept on audit (not block) — scorecard's egress includes
+          # regional GitHub Actions backend endpoints that rotate per
+          # runner placement: `run-actions-<N>-azure-<region>.actions
+          # .githubusercontent.com` and `productionresultssa<N>.blob
+          # .core.windows.net`. harden-runner's allowed-endpoints has
+          # no wildcard support, so a strict block-mode allowlist would
+          # break scorecard runs that land on a different region than
+          # the one we sampled. Audit mode still enforces the global
+          # blocklist of known-compromised C2/exfil endpoints (the
+          # primary supply-chain protection); block-mode would add
+          # protection against exfil to legitimate-but-unexpected
+          # endpoints, but the regional rotation risk outweighs the
+          # marginal benefit for this workflow. Reassess if step-
+          # security adds wildcard support or publishes a stable
+          # scorecard-action allowlist.
+          egress-policy: audit
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Run scorecard
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishes to https://api.scorecard.dev/ which the README
+          # badge points at. Free for public repos; required for the
+          # badge to display a non-stale score.
+          publish_results: true
+      - name: Upload SARIF artefact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
