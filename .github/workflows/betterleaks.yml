@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Secret-scanning gate. GitHub's native secret scanning isn't available
+# on free-tier private repos; betterleaks fills that gap. MIT-licensed
+# successor to gitleaks (same author + team, no org-license required).
+# Scans every PR, every push to main, and the full git history on a
+# weekly cron. Binary is downloaded from the upstream GitHub release
+# and verified against the SHA256 hardcoded below before extraction.
+
+name: betterleaks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"  # weekly Monday 03:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: betterleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Bump in lockstep: both the version string and the linux_x64
+      # checksum from the same release's checksums.txt. Source:
+      # https://github.com/betterleaks/betterleaks/releases/tag/v1.3.1
+      BETTERLEAKS_VERSION: "1.3.1"
+      BETTERLEAKS_SHA256: "7b241c80204538cbb210c94514dc7cdff86430938bd7d5b6e289207959530849"
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            codeload.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Install betterleaks
+        run: |
+          curl -sSfL \
+            "https://github.com/betterleaks/betterleaks/releases/download/v${BETTERLEAKS_VERSION}/betterleaks_${BETTERLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o betterleaks.tar.gz
+          echo "${BETTERLEAKS_SHA256}  betterleaks.tar.gz" | sha256sum --check
+          tar -xzf betterleaks.tar.gz betterleaks
+
+      - name: Scan for secrets
+        run: ./betterleaks git . --verbose
