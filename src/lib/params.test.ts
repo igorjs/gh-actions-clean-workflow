@@ -64,6 +64,18 @@ describe("params", () => {
       );
     });
 
+    test("should accept ghs_ JWT-format token with dots and dashes (stateless format rolled out 2026-04-27)", () => {
+      // GitHub App installation tokens now use a stateless JWT format: ghs_APPID.HEADER.PAYLOAD
+      // See: https://github.blog/changelog/2026-04-24-notice-about-upcoming-new-format-for-github-app-installation-tokens/
+      // Deliberately synthetic (non-base64, low-entropy) segments to avoid triggering
+      // entropy-based secret scanners while still exercising dot and dash acceptance.
+      const jwtToken = "ghs_" + "fake-app-id.fake-header.fake-payload";
+      mockGetInput.mockReturnValue(jwtToken);
+
+      const result = getToken();
+      expect(result).toBe(jwtToken);
+    });
+
     test("should throw error when token is empty", () => {
       mockGetInput.mockReturnValue("");
 
