@@ -15,7 +15,7 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "tsup",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -37,8 +37,8 @@
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.2",
     "@vitest/coverage-v8": "^4.1.8",
+    "esbuild": "^0.27.7",
     "globals": "^17.6.0",
-    "tsup": "^8.5.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }
