@@ -1,0 +1,258 @@
+name: CLA & DCO
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+# Minimal top-level grant: job-level permissions override below.
+# SAFETY: pull_request_target runs with base-branch write context.
+# This workflow must NEVER check out or exec code from the PR head.
+# The actions/checkout step always uses `ref: main` for this reason.
+permissions: {}
+
+concurrency:
+  group: cla-signature
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    if: >
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.user.login != 'dependabot[bot]') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+       contains(github.event.comment.body, 'I hereby sign the CLA'))
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            codeload.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: main
+
+      - name: Check DCO (Signed-off-by on all commits)
+        if: github.event_name == 'pull_request_target'
+        id: dco
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const commits = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+
+            const missing = [];
+            for (const c of commits.data) {
+              // Skip bot-authored commits. auto-update-pr.yml,
+              // dependabot, and the igorjs App create merge / sync
+              // commits via the GitHub API that can't carry a
+              // Signed-off-by trailer; gating on them would block
+              // every PR the auto-updater touches. Mirrors Probot
+              // DCO behaviour. Check both author and committer
+              // because merge commits have a separate committer.
+              if (c.author?.type === 'Bot' || c.committer?.type === 'Bot') {
+                continue;
+              }
+              const msg = c.commit.message || '';
+              if (!msg.includes('Signed-off-by:')) {
+                missing.push(c.sha.substring(0, 7));
+              }
+            }
+
+            if (missing.length > 0) {
+              core.setOutput('dco_pass', 'false');
+              core.setOutput('dco_missing', missing.join(', '));
+            } else {
+              core.setOutput('dco_pass', 'true');
+            }
+
+      - name: Check CLA signature
+        id: cla
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('.github/CONTRIBUTORS.md', 'utf-8');
+
+            let author;
+            if (context.eventName === 'pull_request_target') {
+              author = context.payload.pull_request.user.login.toLowerCase();
+            } else {
+              author = context.payload.comment.user.login.toLowerCase();
+            }
+
+            // Parse table rows between CLA-BOT markers
+            const match = content.match(/CLA-BOT:START[\s\S]*?CLA-BOT:END/);
+            const hasSigned = match ? match[0].toLowerCase().includes(`@${author}`) : false;
+
+            core.setOutput('cla_pass', hasSigned ? 'true' : 'false');
+            core.setOutput('author', author);
+
+      - name: Record CLA signature
+        if: >
+          github.event_name == 'issue_comment' &&
+          steps.cla.outputs.cla_pass == 'false' &&
+          contains(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const filePath = '.github/CONTRIBUTORS.md';
+            const author = context.payload.comment.user.login;
+            const date = new Date().toISOString().split('T')[0];
+            const newRow = `| @${author} | ${date} |`;
+            const maxRetries = 3;
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                const { data: file } = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: filePath,
+                  ref: 'main',
+                });
+
+                const content = Buffer.from(file.content, 'base64').toString('utf-8');
+
+                if (content.toLowerCase().includes(`@${author.toLowerCase()}`)) {
+                  core.info(`@${author} already signed (detected on attempt ${attempt}).`);
+                  break;
+                }
+
+                const updated = content.replace(
+                  '<!-- CLA-BOT:END',
+                  `${newRow}\n<!-- CLA-BOT:END`,
+                );
+
+                await github.rest.repos.createOrUpdateFileContents({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: filePath,
+                  message: `chore: record CLA signature for @${author} [skip ci]`,
+                  content: Buffer.from(updated).toString('base64'),
+                  sha: file.sha,
+                  branch: 'main',
+                  committer: {
+                    name: 'github-actions[bot]',
+                    email: '41898282+github-actions[bot]@users.noreply.github.com',
+                  },
+                });
+
+                core.info(`CLA signature recorded for @${author} on attempt ${attempt}.`);
+                core.setOutput('cla_pass', 'true');
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: `Thank you @${author}! Your CLA signature has been recorded in [CONTRIBUTORS.md](.github/CONTRIBUTORS.md). This PR can now be reviewed and merged.`,
+                });
+
+                break;
+              } catch (err) {
+                if (err.status === 409 && attempt < maxRetries) {
+                  core.warning(`Conflict on attempt ${attempt}, retrying...`);
+                  await new Promise(r => setTimeout(r, 1000 * attempt));
+                  continue;
+                }
+                throw err;
+              }
+            }
+
+      - name: Post status comment
+        if: github.event_name == 'pull_request_target'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const dcoPass = '${{ steps.dco.outputs.dco_pass }}' === 'true';
+            const claPass = '${{ steps.cla.outputs.cla_pass }}' === 'true';
+            const author = '${{ steps.cla.outputs.author }}';
+            const prNumber = context.payload.pull_request.number;
+
+            const addLabel = (name) => github.rest.issues.addLabels({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: prNumber, labels: [name],
+            }).catch(() => {});
+            const removeLabel = (name) => github.rest.issues.removeLabel({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: prNumber, name,
+            }).catch(() => {});
+
+            await (dcoPass ? addLabel('dco:passed') : addLabel('dco:failed'));
+            await (dcoPass ? removeLabel('dco:failed') : removeLabel('dco:passed'));
+            await (claPass ? addLabel('cla:signed') : addLabel('cla:needed'));
+            await (claPass ? removeLabel('cla:needed') : removeLabel('cla:signed'));
+
+            if (dcoPass && claPass) {
+              return;
+            }
+
+            let body = '## Contributor Checks\n\n';
+
+            if (!dcoPass) {
+              const missing = '${{ steps.dco.outputs.dco_missing }}';
+              body += '### :x: DCO Check Failed\n\n';
+              body += `The following commits are missing a \`Signed-off-by\` trailer: ${missing}\n\n`;
+              body += 'Please amend your commits with `git commit --amend --signoff` and force-push.\n\n';
+            } else {
+              body += '### :white_check_mark: DCO Check Passed\n\n';
+            }
+
+            if (!claPass) {
+              body += '### :x: CLA Not Signed\n\n';
+              body += `@${author}, you need to sign the [Individual CLA](.github/ICLA.md) before this PR can be merged.\n\n`;
+              body += 'To sign, reply to this PR with:\n\n';
+              body += '```\nI have read the CLA Document and I hereby sign the CLA.\n```\n\n';
+              body += 'If you are contributing on behalf of your employer, see the [Corporate CLA](.github/CCLA.md) instead.\n';
+            } else {
+              body += '### :white_check_mark: CLA Signed\n\n';
+            }
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const botComment = comments.data.find(c =>
+              c.user.type === 'Bot' && c.body.includes('## Contributor Checks')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+      - name: Fail if checks don't pass
+        if: github.event_name == 'pull_request_target'
+        run: |
+          DCO="${{ steps.dco.outputs.dco_pass }}"
+          CLA="${{ steps.cla.outputs.cla_pass }}"
+          if [ "$DCO" != "true" ] || [ "$CLA" != "true" ]; then
+            echo "DCO: $DCO, CLA: $CLA"
+            exit 1
+          fi
