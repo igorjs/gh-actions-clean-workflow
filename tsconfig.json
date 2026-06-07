@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["ES2024"],
     "target": "ES2024",
-    "module": "Bundler",
+    "module": "ESNext",
     "moduleResolution": "Bundler",
     "isolatedModules": true,
     "types": ["vitest/globals"]

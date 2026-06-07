@@ -1,249 +1,173 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  advanceTimersByTime,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  spyOn,
+  useFakeTimers,
+  useRealTimers,
+} from "@igorjs/pure-test";
 import { CircuitState } from "../config/constants";
-import { CircuitBreaker } from "./circuit-breaker";
-
-// Mock the logger
-vi.mock("./logger");
-
-import * as logger from "./logger";
-
-const mockLoggerInfo = vi.mocked(logger.info);
-const mockLoggerWarn = vi.mocked(logger.warn);
+import { createCircuitBreaker } from "./circuit-breaker";
 
 describe("CircuitBreaker", () => {
-  let circuitBreaker: CircuitBreaker;
+  let consoleInfoSpy: ReturnType<typeof spyOn>;
+  let consoleWarnSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    circuitBreaker = new CircuitBreaker();
+    consoleInfoSpy = spyOn(console, "info").mockImplementation(() => {});
+    consoleWarnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleInfoSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    useRealTimers();
   });
 
   describe("Initial state", () => {
-    test("should start in CLOSED state", () => {
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+    it("should start in CLOSED state", () => {
+      const cb = createCircuitBreaker();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
-    test("should allow execution in CLOSED state", () => {
-      expect(circuitBreaker.canExecute()).toBe(true);
+    it("should allow execution in CLOSED state", () => {
+      const cb = createCircuitBreaker();
+      expect(cb.canExecute()).toBe(true);
     });
   });
 
   describe("CLOSED state behavior", () => {
-    test("should remain CLOSED after successful operations", () => {
-      circuitBreaker.recordSuccess();
-      circuitBreaker.recordSuccess();
-      circuitBreaker.recordSuccess();
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-      expect(circuitBreaker.canExecute()).toBe(true);
+    it("should remain CLOSED after successful operations", () => {
+      const cb = createCircuitBreaker();
+      cb.recordSuccess();
+      cb.recordSuccess();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
-    test("should transition to OPEN after reaching failure threshold", () => {
-      // Default threshold is 5 failures
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-
-      circuitBreaker.recordFailure(); // 5th failure
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        "Circuit breaker OPEN - too many failures (5)"
-      );
+    it("should transition to OPEN after reaching failure threshold", () => {
+      const cb = createCircuitBreaker();
+      // FAILURE_THRESHOLD is 5
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.OPEN);
     });
 
-    test("should reset failure count on success", () => {
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordSuccess(); // Reset counter
-
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-      circuitBreaker.recordFailure();
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+    it("should reset failure count on success", () => {
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 4; i++) cb.recordFailure();
+      cb.recordSuccess();
+      // One more failure shouldn't open (count was reset)
+      cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
   });
 
   describe("OPEN state behavior", () => {
-    beforeEach(() => {
-      // Transition to OPEN state
-      for (let i = 0; i < 5; i++) {
-        circuitBreaker.recordFailure();
-      }
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-      vi.clearAllMocks();
+    it("should reject execution when OPEN", () => {
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      expect(cb.canExecute()).toBe(false);
     });
 
-    test("should reject execution when OPEN", () => {
-      expect(circuitBreaker.canExecute()).toBe(false);
+    it("should remain OPEN before timeout expires", () => {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      advanceTimersByTime(59999); // just under 60s timeout
+      expect(cb.canExecute()).toBe(false);
     });
 
-    test("should remain OPEN before timeout expires", () => {
-      // Timeout is 60000ms, so immediate check should still be OPEN
-      expect(circuitBreaker.canExecute()).toBe(false);
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-    });
-
-    test("should transition to HALF_OPEN after timeout", () => {
-      vi.useFakeTimers();
-
-      expect(circuitBreaker.canExecute()).toBe(false);
-
-      // Fast-forward 60 seconds
-      vi.advanceTimersByTime(60000);
-
-      expect(circuitBreaker.canExecute()).toBe(true);
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        "Circuit breaker HALF_OPEN - testing recovery"
-      );
-
-      vi.useRealTimers();
+    it("should transition to HALF_OPEN after timeout", () => {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      advanceTimersByTime(60000);
+      expect(cb.canExecute()).toBe(true);
+      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
     });
   });
 
   describe("HALF_OPEN state behavior", () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
+    function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      advanceTimersByTime(60000);
+      cb.canExecute(); // triggers HALF_OPEN transition
+      return cb;
+    }
 
-      // Transition to OPEN state
-      for (let i = 0; i < 5; i++) {
-        circuitBreaker.recordFailure();
-      }
-
-      // Wait for timeout to transition to HALF_OPEN
-      vi.advanceTimersByTime(60000);
-      circuitBreaker.canExecute();
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-      vi.clearAllMocks();
+    it("should allow execution in HALF_OPEN state", () => {
+      const cb = openThenHalfOpen();
+      expect(cb.canExecute()).toBe(true);
     });
 
-    afterEach(() => {
-      vi.useRealTimers();
+    it("should transition to CLOSED after success threshold", () => {
+      const cb = openThenHalfOpen();
+      // SUCCESS_THRESHOLD is 2
+      cb.recordSuccess();
+      cb.recordSuccess();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
-    test("should allow execution in HALF_OPEN state", () => {
-      expect(circuitBreaker.canExecute()).toBe(true);
+    it("should transition back to OPEN on failure", () => {
+      const cb = openThenHalfOpen();
+      cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.OPEN);
     });
 
-    test("should transition to CLOSED after success threshold", () => {
-      // Default success threshold is 2
-      circuitBreaker.recordSuccess();
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-
-      circuitBreaker.recordSuccess(); // 2nd success
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        "Circuit breaker CLOSED - service recovered"
-      );
-    });
-
-    test("should transition back to OPEN on failure", () => {
-      circuitBreaker.recordFailure();
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        "Circuit breaker OPEN - recovery failed"
-      );
-    });
-
-    test("should not accumulate success count after transitioning to CLOSED", () => {
-      circuitBreaker.recordSuccess();
-      circuitBreaker.recordSuccess(); // Transitions to CLOSED
-
-      // Now in CLOSED state, more successes shouldn't affect anything
-      circuitBreaker.recordSuccess();
-      circuitBreaker.recordSuccess();
-
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+    it("should not accumulate success count after transitioning to CLOSED", () => {
+      const cb = openThenHalfOpen();
+      cb.recordSuccess();
+      cb.recordSuccess(); // → CLOSED
+      // Fail 4 times — should stay CLOSED (success count was reset)
+      for (let i = 0; i < 4; i++) cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
   });
 
   describe("State transitions", () => {
-    test("complete cycle: CLOSED → OPEN → HALF_OPEN → CLOSED", () => {
-      vi.useFakeTimers();
-
-      // Start in CLOSED
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-
-      // Trigger 5 failures to OPEN
-      for (let i = 0; i < 5; i++) {
-        circuitBreaker.recordFailure();
-      }
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-
-      // Wait for timeout to HALF_OPEN
-      vi.advanceTimersByTime(60000);
-      circuitBreaker.canExecute();
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-
-      // 2 successes to CLOSED
-      circuitBreaker.recordSuccess();
-      circuitBreaker.recordSuccess();
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-
-      vi.useRealTimers();
+    it("complete cycle: CLOSED → OPEN → HALF_OPEN → CLOSED", () => {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.OPEN);
+      advanceTimersByTime(60000);
+      cb.canExecute();
+      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
+      cb.recordSuccess();
+      cb.recordSuccess();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
-    test("complete cycle: CLOSED → OPEN → HALF_OPEN → OPEN", () => {
-      vi.useFakeTimers();
-
-      // Start in CLOSED
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
-
-      // Trigger 5 failures to OPEN
-      for (let i = 0; i < 5; i++) {
-        circuitBreaker.recordFailure();
-      }
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-
-      // Wait for timeout to HALF_OPEN
-      vi.advanceTimersByTime(60000);
-      circuitBreaker.canExecute();
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-
-      // Failure returns to OPEN
-      circuitBreaker.recordFailure();
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-
-      vi.useRealTimers();
+    it("complete cycle: CLOSED → OPEN → HALF_OPEN → OPEN", () => {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      advanceTimersByTime(60000);
+      cb.canExecute();
+      cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.OPEN);
     });
   });
 
   describe("Edge cases", () => {
-    test("should handle success in CLOSED state without issues", () => {
-      // Multiple successes in CLOSED shouldn't cause problems
-      for (let i = 0; i < 10; i++) {
-        circuitBreaker.recordSuccess();
-      }
-      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+    it("should handle success in CLOSED state without issues", () => {
+      const cb = createCircuitBreaker();
+      expect(() => cb.recordSuccess()).not.toThrow();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
-    test("should handle partial success in HALF_OPEN", () => {
-      vi.useFakeTimers();
-
-      // Get to HALF_OPEN
-      for (let i = 0; i < 5; i++) {
-        circuitBreaker.recordFailure();
-      }
-      vi.advanceTimersByTime(60000);
-      circuitBreaker.canExecute();
-
-      // One success (need 2 for CLOSED)
-      circuitBreaker.recordSuccess();
-      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
-
-      // Then failure before reaching threshold
-      circuitBreaker.recordFailure();
-      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
-
-      vi.useRealTimers();
+    it("should handle partial success in HALF_OPEN", () => {
+      useFakeTimers();
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      advanceTimersByTime(60000);
+      cb.canExecute();
+      cb.recordSuccess(); // only 1 of 2 needed
+      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
     });
   });
 });

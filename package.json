@@ -7,6 +7,7 @@
     "node": ">=26.0.0",
     "pnpm": ">=11.5.2"
   },
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "lint": "biome lint src",
@@ -41,6 +42,7 @@
     "c8": "^11.0.0",
     "esbuild": "^0.27.7",
     "globals": "^17.6.0",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }
