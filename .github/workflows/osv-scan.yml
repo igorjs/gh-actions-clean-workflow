@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# OSV-Scanner: cross-language vulnerability scan against the GitHub
+# Advisory Database. Auto-detects package manifests at the repo root
+# (Cargo.lock, package-lock.json, requirements.txt, go.sum, etc.) and
+# flags any known CVEs in transitive dependencies.
+#
+# For repos with no traditional package manifest (Terraform, bash, raw
+# Markdown), the scanner produces an empty report; harmless to keep
+# enabled.
+
+name: osv-scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"  # weekly Monday 04:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: osv-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # upload SARIF
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          # Block-mode allowlist derived from audit telemetry on a
+          # known-good pure-fx run (run 26576056664). The set is small
+          # and stable: checkout source, OSV-Scanner API, optional SARIF
+          # upload, harden-runner control plane + telemetry, GitHub
+          # Actions result receiver. ghcr.io is required because
+          # google/osv-scanner-action is a Docker action; the image pull
+          # itself happens before harden-runner activates, but cached
+          # pulls and downstream calls still go through the policy.
+          egress-policy: block
+          allowed-endpoints: >
+            agent.api.stepsecurity.io:443
+            api.github.com:443
+            api.osv.dev:443
+            codeload.github.com:443
+            ghcr.io:443
+            github.com:443
+            pkg-containers.githubusercontent.com:443
+            prod.app-api.stepsecurity.io:443
+            results-receiver.actions.githubusercontent.com:443
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with:
+          # `--skip-git` was a v1.x flag; osv-scanner v2 rejects it as
+          # "flag provided but not defined: -skip-git". The v2 scanner
+          # no longer walks git history by default, so the flag is
+          # both invalid and redundant.
+          scan-args: |-
+            --recursive
+            ./
