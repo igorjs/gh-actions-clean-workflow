@@ -1,44 +1,30 @@
-/**
- * Main entry point for the GitHub Action
- */
-
-import { setFailed, setOutput } from "@actions/core";
-import type { ApiMetrics } from "./config/types";
-import { getApi } from "./lib/api";
+import { fileURLToPath } from "node:url";
+import { setTimeout as nodeSetTimeout } from "node:timers/promises";
+import { getInput, setFailed, setOutput } from "@actions/core";
+import { getOctokit } from "@actions/github";
+import type { ApiMetrics, RunEnv } from "./config/types";
+import { makeApi } from "./lib/api";
 import * as logger from "./lib/logger";
-import {
-  getDryRun,
-  getOwner,
-  getRepo,
-  getRunsOlderThan,
-  getRunsToKeep,
-  getToken,
-  getWorkflowNames,
-} from "./lib/params";
+import { makeParams } from "./lib/params";
 
-/**
- * Export metrics as GitHub Action outputs
- */
 function exportMetrics(
   totalRuns: number,
   succeeded: number,
   failed: number,
-  metrics: ApiMetrics
+  metrics: ApiMetrics,
+  setOut: (name: string, value: string) => void
 ): void {
-  setOutput("total-runs-found", totalRuns.toString());
-  setOutput("runs-deleted", succeeded.toString());
-  setOutput("runs-failed", failed.toString());
-  setOutput("total-api-requests", metrics.totalRequests.toString());
-  setOutput("successful-requests", metrics.successfulRequests.toString());
-  setOutput("failed-requests", metrics.failedRequests.toString());
-  setOutput("retry-attempts", metrics.retries.toString());
-  setOutput("rate-limit-hits", metrics.rateLimitHits.toString());
-  setOutput("circuit-breaker-trips", metrics.circuitBreakerTrips.toString());
+  setOut("total-runs-found", totalRuns.toString());
+  setOut("runs-deleted", succeeded.toString());
+  setOut("runs-failed", failed.toString());
+  setOut("total-api-requests", metrics.totalRequests.toString());
+  setOut("successful-requests", metrics.successfulRequests.toString());
+  setOut("failed-requests", metrics.failedRequests.toString());
+  setOut("retry-attempts", metrics.retries.toString());
+  setOut("rate-limit-hits", metrics.rateLimitHits.toString());
+  setOut("circuit-breaker-trips", metrics.circuitBreakerTrips.toString());
 }
 
-/**
- * Log workflow statistics
- */
 function logWorkflowStats(
   workflowStats: Map<number, { total: number; toDelete: number }>,
   runsToKeep: number,
@@ -58,26 +44,29 @@ function logWorkflowStats(
   }
 }
 
-/**
- * Main execution function
- */
-export async function run(): Promise<void> {
+function makeDefaultEnv(): RunEnv {
+  return {
+    params: makeParams({ getInput }),
+    getApi: makeApi({ getOctokit, sleep: nodeSetTimeout, now: Date.now }),
+    setFailed,
+    setOutput,
+  };
+}
+
+export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
+  const { params, getApi, setFailed: fail, setOutput: setOut } = env;
   try {
-    const token = getToken();
-    const owner = getOwner();
-    const repo = getRepo();
-    const runsToKeep = getRunsToKeep();
-    const olderThanDays = getRunsOlderThan();
-    const dryRun = getDryRun();
-    const workflowNames = getWorkflowNames();
+    const token = params.getToken();
+    const owner = params.getOwner();
+    const repo = params.getRepo();
+    const runsToKeep = params.getRunsToKeep();
+    const olderThanDays = params.getRunsOlderThan();
+    const dryRun = params.getDryRun();
+    const workflowNames = params.getWorkflowNames();
 
-    if (dryRun) {
-      logger.info("DRY RUN MODE - No runs will be actually deleted");
-    }
-
-    if (workflowNames.length > 0) {
+    if (dryRun) logger.info("DRY RUN MODE - No runs will be actually deleted");
+    if (workflowNames.length > 0)
       logger.info(`Filtering by workflows: ${workflowNames.join(", ")}`);
-    }
 
     const api = getApi({ token, owner, repo, dryRun, workflowNames });
 
@@ -93,47 +82,37 @@ export async function run(): Promise<void> {
       logger.info("No runs to delete");
       const metrics = api.getMetrics();
       logger.metrics(metrics);
-      exportMetrics(totalRuns, 0, 0, metrics);
+      exportMetrics(totalRuns, 0, 0, metrics, setOut);
       return;
     }
 
-    // Log per-workflow statistics
     logWorkflowStats(workflowStats, runsToKeep, dryRun);
 
     const action = dryRun ? "Would delete" : "Deleting";
-    logger.info(
-      `${action} ${runIds.length} total runs across all workflows...`
-    );
+    logger.info(`${action} ${runIds.length} total runs across all workflows...`);
 
-    // Delete runs
     const { failed, succeeded } = await api.deleteRuns(runIds);
 
-    // Log final results
-    if (dryRun) {
-      logger.dryRun(`Would have deleted ${succeeded} runs`);
-    } else {
-      logger.success(`Deleted ${succeeded} runs`);
-    }
+    if (dryRun) logger.dryRun(`Would have deleted ${succeeded} runs`);
+    else logger.success(`Deleted ${succeeded} runs`);
 
-    if (failed > 0) {
-      logger.warn(`Failed to delete ${failed} runs`);
-    }
+    if (failed > 0) logger.warn(`Failed to delete ${failed} runs`);
 
-    // Log and export metrics
     const metrics = api.getMetrics();
     logger.metrics(metrics);
-    exportMetrics(totalRuns, succeeded, failed, metrics);
+    exportMetrics(totalRuns, succeeded, failed, metrics, setOut);
 
-    // If there were failures, set action as failed
     if (failed > 0 && !dryRun) {
-      setFailed(
+      fail(
         `Failed to delete ${failed} out of ${runIds.length} runs. Check logs for details.`
       );
     }
   } catch (err) {
     console.error(err);
-    setFailed(err.message);
+    fail((err as Error).message);
   }
 }
 
-run();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run();
+}
