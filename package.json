@@ -34,9 +34,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
+    "@igorjs/pure-test": "^0.4.2",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.2",
     "@vitest/coverage-v8": "^4.1.8",
+    "c8": "^11.0.0",
     "esbuild": "^0.27.7",
     "globals": "^17.6.0",
     "typescript": "^6.0.3",
