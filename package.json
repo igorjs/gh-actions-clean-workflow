@@ -16,10 +16,10 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=esm",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=esm --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "test": "NODE_OPTIONS='--import tsx/esm' pure-test src/index.test.ts src/lib/api.test.ts src/lib/circuit-breaker.test.ts src/lib/params.test.ts",
     "test:watch": "NODE_OPTIONS='--import tsx/esm' pure-test src/index.test.ts src/lib/api.test.ts src/lib/circuit-breaker.test.ts src/lib/params.test.ts --watch",
-    "test:coverage": "c8 --config=.c8rc.json pnpm run test",
+    "test:coverage": "mkdir -p coverage/tmp && NODE_V8_COVERAGE=coverage/tmp NODE_OPTIONS='--import tsx/esm' pure-test src/index.test.ts src/lib/api.test.ts src/lib/circuit-breaker.test.ts src/lib/params.test.ts && node scripts/coverage-report.cjs",
     "all": "pnpm run check && pnpm run test && pnpm run build"
   },
   "keywords": [
@@ -38,7 +38,7 @@
     "@igorjs/pure-test": "^0.4.2",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.2",
-    "c8": "^11.0.0",
+    "c8": "^8.0.1",
     "esbuild": "^0.27.7",
     "globals": "^17.6.0",
     "tsx": "^4.22.4",
