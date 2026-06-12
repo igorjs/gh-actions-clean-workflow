@@ -4,38 +4,48 @@ import {
   describe,
   expect,
   it,
-  spyFn,
-  spyOn,
-} from "@igorjs/pure-test";
+  type MockInstance,
+  vi,
+} from "vitest";
 import { makeApi } from "./api";
 
 function makeTestDeps() {
-  const mockDeleteWorkflowRun = spyFn<
-    [{ owner: string; repo: string; run_id: number }],
-    Promise<object>
-  >().mockResolvedValue({});
+  const mockDeleteWorkflowRun = vi
+    .fn<[{ owner: string; repo: string; run_id: number }], Promise<object>>()
+    .mockResolvedValue({});
 
-  const mockPaginateIterator = spyFn();
+  const mockPaginateIterator = vi.fn();
 
   const mockOctokit = {
     paginate: { iterator: mockPaginateIterator },
     rest: {
       actions: {
         deleteWorkflowRun: mockDeleteWorkflowRun,
-        listWorkflowRunsForRepo: spyFn(),
+        listWorkflowRunsForRepo: vi.fn(),
       },
     },
   };
 
-  const sleep = spyFn<[number], Promise<void>>().mockResolvedValue(undefined);
-  const getOctokit = spyFn().mockReturnValue(mockOctokit);
-  const now = spyFn().mockReturnValue(Date.now());
+  const sleep = vi.fn<[number], Promise<void>>().mockResolvedValue(undefined);
+  const getOctokit = vi.fn().mockReturnValue(mockOctokit);
+  const now = vi.fn().mockReturnValue(Date.now());
 
-  return { sleep, getOctokit, now, mockDeleteWorkflowRun, mockPaginateIterator, mockOctokit };
+  return {
+    sleep,
+    getOctokit,
+    now,
+    mockDeleteWorkflowRun,
+    mockPaginateIterator,
+    mockOctokit,
+  };
 }
 
 const TEST_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF";
-const BASE_PARAMS = { token: TEST_TOKEN, owner: "test-owner", repo: "test-repo" };
+const BASE_PARAMS = {
+  token: TEST_TOKEN,
+  owner: "test-owner",
+  repo: "test-repo",
+};
 
 describe("api", () => {
   describe("makeApi / getApi", () => {
@@ -111,7 +121,10 @@ describe("api", () => {
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 0);
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        0
+      );
       expect(result.runIds).toEqual([1, 2, 3, 4, 5, 6]);
       expect(result.totalRuns).toBe(6);
       expect(result.workflowStats.get(100)).toEqual({ total: 4, toDelete: 4 });
@@ -123,7 +136,10 @@ describe("api", () => {
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 2);
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        2
+      );
       expect(result.runIds).toEqual([3, 4]);
       expect(result.workflowStats.get(100)).toEqual({ total: 4, toDelete: 2 });
       expect(result.workflowStats.get(200)).toEqual({ total: 2, toDelete: 0 });
@@ -134,7 +150,10 @@ describe("api", () => {
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
       });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 10);
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        10
+      );
       expect(result.runIds).toEqual([]);
       expect(result.totalRuns).toBe(6);
     });
@@ -144,7 +163,10 @@ describe("api", () => {
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: [] };
       });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(undefined, 5);
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        5
+      );
       expect(result.runIds).toEqual([]);
       expect(result.totalRuns).toBe(0);
       expect(result.workflowStats.size).toBe(0);
@@ -152,7 +174,7 @@ describe("api", () => {
 
     it("should apply date filter when provided", async () => {
       const deps = makeTestDeps();
-      // Inject a fixed "now" — no clock faking needed
+      // Inject a fixed "now"; no clock faking needed
       deps.now.mockReturnValue(new Date("2024-01-10T00:00:00Z").getTime());
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRuns };
@@ -167,10 +189,30 @@ describe("api", () => {
     it("should filter runs by workflow names", async () => {
       const deps = makeTestDeps();
       const mockRunsWithNames = [
-        { id: 1, workflow_id: 100, created_at: "2024-01-05T00:00:00Z", name: "CI" },
-        { id: 2, workflow_id: 100, created_at: "2024-01-04T00:00:00Z", name: "CI" },
-        { id: 3, workflow_id: 200, created_at: "2024-01-03T00:00:00Z", name: "Deploy" },
-        { id: 4, workflow_id: 300, created_at: "2024-01-02T00:00:00Z", name: "Tests" },
+        {
+          id: 1,
+          workflow_id: 100,
+          created_at: "2024-01-05T00:00:00Z",
+          name: "CI",
+        },
+        {
+          id: 2,
+          workflow_id: 100,
+          created_at: "2024-01-04T00:00:00Z",
+          name: "CI",
+        },
+        {
+          id: 3,
+          workflow_id: 200,
+          created_at: "2024-01-03T00:00:00Z",
+          name: "Deploy",
+        },
+        {
+          id: 4,
+          workflow_id: 300,
+          created_at: "2024-01-02T00:00:00Z",
+          name: "Tests",
+        },
       ];
       deps.mockPaginateIterator.mockImplementation(async function* () {
         yield { data: mockRunsWithNames };
@@ -186,12 +228,12 @@ describe("api", () => {
   });
 
   describe("Error handling", () => {
-    let infoSpy: ReturnType<typeof spyOn>;
-    let errorSpy: ReturnType<typeof spyOn>;
+    let infoSpy: MockInstance;
+    let errorSpy: MockInstance;
 
     beforeEach(() => {
-      infoSpy = spyOn(console, "info").mockImplementation(() => {});
-      errorSpy = spyOn(console, "error").mockImplementation(() => {});
+      infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+      errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -237,8 +279,10 @@ describe("api", () => {
   describe("Retry logic", () => {
     it("should retry on server errors (5xx)", async () => {
       const deps = makeTestDeps();
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const serverError = Object.assign(new Error("Internal Server Error"), {
+        status: 500,
+      });
       deps.mockDeleteWorkflowRun
         .mockRejectedValueOnce(serverError)
         .mockRejectedValueOnce(serverError)
@@ -246,13 +290,15 @@ describe("api", () => {
       const result = await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
       expect(result.succeeded).toBe(1);
       expect(result.failed).toBe(0);
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in"));
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("retrying in")
+      );
       warnSpy.mockRestore();
     });
 
     it("should handle rate limit with retry-after header", async () => {
       const deps = makeTestDeps();
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const rateLimitError = Object.assign(new Error("Rate limit exceeded"), {
         status: 429,
         response: { headers: { "retry-after": "2" } },
@@ -263,7 +309,9 @@ describe("api", () => {
       const api = makeApi(deps)(BASE_PARAMS);
       const result = await api.deleteRuns([1]);
       expect(result.succeeded).toBe(1);
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit hit"));
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Rate limit hit")
+      );
       const metrics = api.getMetrics();
       expect(metrics.rateLimitHits).toBe(1);
       expect(metrics.retries).toBeGreaterThan(0);
@@ -272,7 +320,9 @@ describe("api", () => {
 
     it("should not retry on client errors (4xx except 429)", async () => {
       const deps = makeTestDeps();
-      const clientError = Object.assign(new Error("Bad Request"), { status: 400 });
+      const clientError = Object.assign(new Error("Bad Request"), {
+        status: 400,
+      });
       deps.mockDeleteWorkflowRun.mockRejectedValueOnce(clientError);
       const result = await makeApi(deps)(BASE_PARAMS).deleteRuns([1]);
       expect(result.succeeded).toBe(0);
@@ -284,7 +334,7 @@ describe("api", () => {
   describe("Circuit breaker", () => {
     it("should open circuit after multiple failures", async () => {
       const deps = makeTestDeps();
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const error = Object.assign(new Error("Bad Request"), { status: 400 });
       deps.mockDeleteWorkflowRun.mockRejectedValue(error);
       const api = makeApi(deps)(BASE_PARAMS);
@@ -302,7 +352,7 @@ describe("api", () => {
   describe("Dry run mode", () => {
     it("should not actually delete runs in dry run mode", async () => {
       const deps = makeTestDeps();
-      const infoSpy = spyOn(console, "info").mockImplementation(() => {});
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
       const api = makeApi(deps)({ ...BASE_PARAMS, dryRun: true });
       const result = await api.deleteRuns([1, 2, 3]);
       expect(result.succeeded).toBe(3);

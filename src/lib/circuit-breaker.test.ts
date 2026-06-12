@@ -1,30 +1,28 @@
 import {
-  advanceTimersByTime,
   afterEach,
   beforeEach,
   describe,
   expect,
   it,
-  spyOn,
-  useFakeTimers,
-  useRealTimers,
-} from "@igorjs/pure-test";
+  type MockInstance,
+  vi,
+} from "vitest";
 import { CircuitState } from "../config/constants";
 import { createCircuitBreaker } from "./circuit-breaker";
 
 describe("CircuitBreaker", () => {
-  let consoleInfoSpy: ReturnType<typeof spyOn>;
-  let consoleWarnSpy: ReturnType<typeof spyOn>;
+  let consoleInfoSpy: MockInstance;
+  let consoleWarnSpy: MockInstance;
 
   beforeEach(() => {
-    consoleInfoSpy = spyOn(console, "info").mockImplementation(() => {});
-    consoleWarnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     consoleInfoSpy.mockRestore();
     consoleWarnSpy.mockRestore();
-    useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("Initial state", () => {
@@ -72,18 +70,18 @@ describe("CircuitBreaker", () => {
     });
 
     it("should remain OPEN before timeout expires", () => {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
-      advanceTimersByTime(59999); // just under 60s timeout
+      vi.advanceTimersByTime(59999); // just under 60s timeout
       expect(cb.canExecute()).toBe(false);
     });
 
     it("should transition to HALF_OPEN after timeout", () => {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
-      advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       expect(cb.canExecute()).toBe(true);
       expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
     });
@@ -91,10 +89,10 @@ describe("CircuitBreaker", () => {
 
   describe("HALF_OPEN state behavior", () => {
     function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
-      advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       cb.canExecute(); // triggers HALF_OPEN transition
       return cb;
     }
@@ -122,7 +120,7 @@ describe("CircuitBreaker", () => {
       const cb = openThenHalfOpen();
       cb.recordSuccess();
       cb.recordSuccess(); // → CLOSED
-      // Fail 4 times — should stay CLOSED (success count was reset)
+      // Fail 4 times: should stay CLOSED (success count was reset)
       for (let i = 0; i < 4; i++) cb.recordFailure();
       expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
@@ -130,11 +128,11 @@ describe("CircuitBreaker", () => {
 
   describe("State transitions", () => {
     it("complete cycle: CLOSED → OPEN → HALF_OPEN → CLOSED", () => {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
       expect(cb.getState()).toBe(CircuitState.OPEN);
-      advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       cb.canExecute();
       expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
       cb.recordSuccess();
@@ -143,10 +141,10 @@ describe("CircuitBreaker", () => {
     });
 
     it("complete cycle: CLOSED → OPEN → HALF_OPEN → OPEN", () => {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
-      advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       cb.canExecute();
       cb.recordFailure();
       expect(cb.getState()).toBe(CircuitState.OPEN);
@@ -161,10 +159,10 @@ describe("CircuitBreaker", () => {
     });
 
     it("should handle partial success in HALF_OPEN", () => {
-      useFakeTimers();
+      vi.useFakeTimers();
       const cb = createCircuitBreaker();
       for (let i = 0; i < 5; i++) cb.recordFailure();
-      advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       cb.canExecute();
       cb.recordSuccess(); // only 1 of 2 needed
       expect(cb.getState()).toBe(CircuitState.HALF_OPEN);

@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, spyFn } from "@igorjs/pure-test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeParams } from "./params";
 
 function makeGetInput(returnValue = "") {
-  return spyFn<
-    [string, { required?: boolean; trimWhitespace?: boolean }?],
-    string
-  >().mockReturnValue(returnValue);
+  return vi
+    .fn<[string, { required?: boolean; trimWhitespace?: boolean }?], string>()
+    .mockReturnValue(returnValue);
 }
 
 describe("params", () => {
@@ -24,7 +23,9 @@ describe("params", () => {
 
     it("should return token when provided with valid format (ghs_)", () => {
       const { getToken } = makeParams({
-        getInput: makeGetInput("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"),
+        getInput: makeGetInput(
+          "ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+        ),
       });
       expect(getToken()).toBe("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
     });
@@ -59,7 +60,7 @@ describe("params", () => {
       const jwtToken = "ghs_" + "fake-app-id.fake-header.fake-payload";
       const { getToken } = makeParams({ getInput: makeGetInput(jwtToken) });
       expect(getToken()).toBe(jwtToken);
-    })
+    });
 
     it("should throw error when token is empty", () => {
       const { getToken } = makeParams({ getInput: makeGetInput("") });
@@ -99,7 +100,9 @@ describe("params", () => {
     });
 
     it("should accept owner with hyphens", () => {
-      const { getOwner } = makeParams({ getInput: makeGetInput("my-org-name") });
+      const { getOwner } = makeParams({
+        getInput: makeGetInput("my-org-name"),
+      });
       expect(getOwner()).toBe("my-org-name");
     });
 
@@ -164,7 +167,9 @@ describe("params", () => {
 
     it("should accept repo with dots and underscores", () => {
       process.env.GITHUB_REPOSITORY = "owner/my.repo_name";
-      const { getRepo } = makeParams({ getInput: makeGetInput("my.repo_name") });
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("my.repo_name"),
+      });
       expect(getRepo()).toBe("my.repo_name");
     });
 
