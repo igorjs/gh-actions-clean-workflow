@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Managed by github.com/igorjs-iac/repo-config
 name: OpenSSF Scorecard
 
 # Publishes the project's OpenSSF Scorecard rating (binary-artifacts,
