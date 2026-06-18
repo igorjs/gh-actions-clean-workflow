@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Managed by github.com/igorjs-iac/repo-config
 #
 # OSV-Scanner: cross-language vulnerability scan against the GitHub
 # Advisory Database. Auto-detects package manifests at the repo root
