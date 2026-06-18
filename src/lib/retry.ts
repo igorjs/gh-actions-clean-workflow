@@ -1,5 +1,9 @@
 import { API_CONFIG, HTTP_STATUS } from "../config/constants";
-import type { ApiMetrics, CircuitBreakerHandle, RetryDeps } from "../config/types";
+import type {
+  ApiMetrics,
+  CircuitBreakerHandle,
+  RetryDeps,
+} from "../config/types";
 import * as logger from "./logger";
 
 interface HttpError extends Error {
@@ -90,7 +94,12 @@ export function makeRetry(deps: RetryDeps) {
         }
 
         if (attempt < API_CONFIG.MAX_RETRIES) {
-          await handleRetryableError(lastError, operationName, attempt, metrics);
+          await handleRetryableError(
+            lastError,
+            operationName,
+            attempt,
+            metrics
+          );
         } else {
           metrics.failedRequests++;
           circuitBreaker.recordFailure();

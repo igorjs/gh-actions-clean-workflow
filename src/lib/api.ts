@@ -15,7 +15,7 @@ import { makeRetry } from "./retry";
 export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
   const { getOctokit, sleep, now } = deps;
 
-  return function (params: ApiParams): Api {
+  return (params: ApiParams): Api => {
     const { token, owner, repo, dryRun = false, workflowNames = [] } = params;
     const octokit = getOctokit(token);
     const circuitBreaker = createCircuitBreaker();
@@ -116,10 +116,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
       )) {
         for (const run of response.data) {
           const workflowName = run.name || "";
-          if (
-            workflowNames.length > 0 &&
-            !workflowNames.includes(workflowName)
-          )
+          if (workflowNames.length > 0 && !workflowNames.includes(workflowName))
             continue;
           runs.push({
             id: run.id,

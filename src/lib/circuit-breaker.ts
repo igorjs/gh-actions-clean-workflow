@@ -27,9 +27,7 @@ export function createCircuitBreaker(): CircuitBreakerHandle {
       state === CircuitState.CLOSED &&
       failureCount >= CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD
     ) {
-      logger.warn(
-        `Circuit breaker OPEN - too many failures (${failureCount})`
-      );
+      logger.warn(`Circuit breaker OPEN - too many failures (${failureCount})`);
       state = CircuitState.OPEN;
     } else if (state === CircuitState.HALF_OPEN) {
       logger.warn("Circuit breaker OPEN - recovery failed");
