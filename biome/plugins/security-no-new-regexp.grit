@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow new RegExp() with non-literal pattern (eslint-plugin-security: detect-non-literal-regexp).
+// A regex pattern built from user input can trigger catastrophic backtracking
+// (ReDoS). Use a regex literal `/pattern/` when the pattern is known at
+// compile time, or sanitise and validate the input before constructing.
+`new RegExp($arg)` where {
+    not $arg <: `"$_"`,
+    not $arg <: `'$_'`,
+    register_diagnostic(
+        span = `new RegExp($arg)`,
+        message = "Potentially unsafe RegExp construction from a non-literal. Dynamic patterns can cause ReDoS; validate input before use."
+    )
+}
