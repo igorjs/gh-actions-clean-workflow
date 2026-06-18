@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Templated by repo-config/modules/hardened-repo/main.tf (variable
+# manage_workflow_commitlint). Direct edits in the consuming repo are
+# overwritten on the next `terraform apply` against repo-config.
+#
+# Validates that the PR title follows Conventional Commits format.
+# This matters because squash-merge uses the PR title as the commit
+# message on main, which feeds the changelog generation in release.yml.
+#
+# Accepted types: feat | fix | docs | style | refactor | perf | test |
+#                 chore | ci | build | revert
+# Breaking changes: append ! before the colon (feat!: ...).
+
+name: Commit Lint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Validate PR title (Conventional Commits)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = context.payload.pull_request.title;
+
+            // Conventional Commits: <type>(<optional scope>)<!>: <subject>
+            // Subject capped at 72 chars so the squash commit stays readable.
+            const CC = /^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?: .{1,72}$/;
+
+            if (!CC.test(title)) {
+              core.setFailed(
+                'PR title does not follow Conventional Commits.\n\n' +
+                'Got:      "' + title + '"\n\n' +
+                'Expected: <type>(<scope>): <subject>  (subject <= 72 chars)\n' +
+                'Types:    feat | fix | docs | style | refactor | perf | test | chore | ci | build | revert\n' +
+                'Example:  feat(parser): support optional chaining'
+              );
+            } else {
+              core.info('PR title OK: "' + title + '"');
+            }
