@@ -1,0 +1,24 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "plugins": [
+    "biome/plugins/no-console.grit",
+    "biome/plugins/no-process-exit.grit",
+    "biome/plugins/no-prototype-builtins.grit",
+    "biome/plugins/no-instanceof-array.grit",
+    "biome/plugins/prefer-number-properties.grit",
+    "biome/plugins/prefer-number-isfinite.grit",
+    "biome/plugins/prefer-object-has-own.grit",
+    "biome/plugins/no-new-wrappers.grit",
+    "biome/plugins/no-new-wrappers-number.grit",
+    "biome/plugins/no-new-wrappers-boolean.grit",
+    "biome/plugins/prefer-string-slice.grit",
+    "biome/plugins/prefer-string-slice-substring.grit",
+    "biome/plugins/prefer-object-spread.grit",
+    "biome/plugins/prefer-await-to-then.grit",
+    "biome/plugins/security-no-eval.grit",
+    "biome/plugins/security-no-new-regexp.grit",
+    "biome/plugins/security-no-dynamic-require.grit",
+    "biome/plugins/security-no-child-process.grit",
+    "biome/plugins/security-no-buffer-constructor.grit"
+  ]
+}
