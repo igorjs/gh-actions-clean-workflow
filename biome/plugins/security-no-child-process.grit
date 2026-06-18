@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow child_process.exec() with non-literal commands (eslint-plugin-security: detect-child-process).
+// exec() passes the command to the shell; any user-supplied content in the
+// string enables arbitrary command execution. Prefer execFile() or spawn()
+// with an explicit args array, which bypass shell interpolation.
+`child_process.exec($cmd, $$$)` where {
+    not $cmd <: `"$_"`,
+    not $cmd <: `'$_'`,
+    register_diagnostic(
+        span = `child_process.exec($cmd, $$$)`,
+        message = "Unsafe child_process.exec() with a dynamic command. Use execFile() or spawn() with an args array to avoid shell injection."
+    )
+}
