@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: Apache-2.0
+# Managed by github.com/igorjs-iac/repo-config
+#
+# Templated by repo-config/modules/hardened-repo/main.tf (variable
+# manage_workflow_close_superseded). Direct edits in the consuming repo are
+# overwritten on the next `terraform apply` against repo-config.
+#
+# When a PR is merged into the base branch, finds all other open PRs that
+# touch at least one of the same files, labels them "superseded", posts a
+# comment pointing to the merged PR, and closes them.
+#
+# Rationale: after a merge that rewrites shared files, sibling PRs are
+# almost certainly going to conflict. Closing them immediately keeps the
+# PR queue clean and signals to contributors that they should rebase on
+# main before reopening.
+
+name: Close Superseded PRs
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  close-superseded:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+
+      - name: Close PRs superseded by this merge
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const mergedPR   = context.payload.pull_request;
+            const baseBranch = mergedPR.base.ref;
+
+            // Files changed in the merged PR (up to 100; plenty for overlap detection).
+            const { data: mergedFiles } = await github.rest.pulls.listFiles({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              pull_number: mergedPR.number,
+              per_page:    100,
+            });
+            const mergedSet = new Set(mergedFiles.map(f => f.filename));
+
+            if (mergedSet.size === 0) {
+              core.info('Merged PR has no changed files; nothing to supersede.');
+              return;
+            }
+
+            // All open PRs targeting the same base branch.
+            const { data: openPRs } = await github.rest.pulls.list({
+              owner:    context.repo.owner,
+              repo:     context.repo.repo,
+              state:    'open',
+              base:     baseBranch,
+              per_page: 100,
+            });
+
+            for (const pr of openPRs) {
+              if (pr.number === mergedPR.number) continue;
+
+              let prFiles;
+              try {
+                const { data } = await github.rest.pulls.listFiles({
+                  owner:       context.repo.owner,
+                  repo:        context.repo.repo,
+                  pull_number: pr.number,
+                  per_page:    100,
+                });
+                prFiles = data;
+              } catch (err) {
+                core.warning('Could not list files for PR #' + pr.number + ': ' + err.message);
+                continue;
+              }
+
+              const overlap = prFiles.filter(f => mergedSet.has(f.filename));
+              if (overlap.length === 0) continue;
+
+              const listed   = overlap.slice(0, 10).map(f => '- `' + f.filename + '`').join('\n');
+              const extra    = overlap.length > 10 ? '\n- … and ' + (overlap.length - 10) + ' more' : '';
+
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: pr.number,
+                body: [
+                  '## Superseded by #' + mergedPR.number,
+                  '',
+                  'PR #' + mergedPR.number + ' ("' + mergedPR.title + '") was just merged and modifies the same files as this PR:',
+                  '',
+                  listed + extra,
+                  '',
+                  'This PR is being closed as superseded. If the work is still relevant, please rebase on `' + baseBranch + '` and reopen.',
+                ].join('\n'),
+              });
+
+              try {
+                await github.rest.issues.addLabels({
+                  owner:        context.repo.owner,
+                  repo:         context.repo.repo,
+                  issue_number: pr.number,
+                  labels:       ['superseded'],
+                });
+              } catch { /* label may not exist; non-fatal */ }
+
+              await github.rest.pulls.update({
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                pull_number: pr.number,
+                state:       'closed',
+              });
+
+              core.info('Closed PR #' + pr.number + ' as superseded by #' + mergedPR.number);
+            }
