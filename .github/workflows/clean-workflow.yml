@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Managed by github.com/igorjs-iac/repo-config
 #
 # Weekly scheduled cleanup of old workflow run history.
 # Deletes runs older than 7 days, keeping the 10 most recent per
