@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow process.exit() in library code.
+// A library that calls process.exit() terminates the host process without
+// giving the caller a chance to clean up. Throw an Error instead.
+`process.exit($$$)` where {
+    register_diagnostic(
+        span = `process.exit($$$)`,
+        message = "Libraries must not call process.exit(). Throw an Error and let the caller decide whether to exit."
+    )
+}
