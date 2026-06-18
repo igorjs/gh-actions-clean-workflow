@@ -2,16 +2,16 @@
   "compilerOptions": {
     "lib": ["ES2024"],
     "target": "ES2024",
-    "module": "Bundler",
+    "module": "ESNext",
     "moduleResolution": "Bundler",
     "isolatedModules": true,
-    "types": ["vitest/globals"]
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "exclude": [
     "**/*.test.ts",
     "**/*.spec.ts",
     "node_modules",
-    "dist",
-    "vitest.config.ts"
+    "dist"
   ]
 }

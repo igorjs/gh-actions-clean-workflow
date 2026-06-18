@@ -13,7 +13,7 @@ Clean workflow run logs based on configuration with advanced features like retry
 - 📊 **Detailed Metrics**: Comprehensive API metrics exported as action outputs
 - 🧪 **Dry Run Mode**: Test your configuration without actually deleting runs
 - 📈 **High Test Coverage**: Over 95% code coverage with unit and integration tests
-- ⚡ **Modern Tooling**: Built with TypeScript, Biome.js, and Vitest
+- ⚡ **Modern Tooling**: Built with TypeScript, Biome.js, and pure-test
 
 ## Usage
 

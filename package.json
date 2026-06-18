@@ -7,6 +7,7 @@
     "node": ">=26.0.0",
     "pnpm": ">=11.5.2"
   },
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "lint": "biome lint src",
@@ -15,7 +16,7 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=cjs",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=esm --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -34,12 +35,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
+    "@vitest/coverage-v8": "^3.2.4",
     "@octokit/types": "^16.0.0",
     "@types/node": "^25.9.2",
-    "@vitest/coverage-v8": "^4.1.8",
+    "vitest": "^3.2.4",
     "esbuild": "^0.27.7",
     "globals": "^17.6.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^6.0.3"
   }
 }

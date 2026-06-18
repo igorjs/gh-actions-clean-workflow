@@ -2,6 +2,7 @@
  * Type definitions for the application
  */
 
+import type { getOctokit } from "@actions/github";
 import type { CircuitState } from "./constants";
 
 /**
@@ -113,29 +114,47 @@ export interface Api {
   getMetrics(): ApiMetrics;
 }
 
-/**
- * Circuit breaker interface for managing failure states
- */
-export interface ICircuitBreaker {
-  /**
-   * Record a successful operation
-   */
-  recordSuccess(): void;
+export type Sleep = (ms: number) => Promise<void>;
 
-  /**
-   * Record a failed operation
-   */
-  recordFailure(): void;
+export type OctokitInstance = ReturnType<typeof getOctokit>;
 
-  /**
-   * Check if operation can be executed
-   * @returns true if circuit allows execution
-   */
-  canExecute(): boolean;
+export type ParamsDeps = {
+  getInput: (
+    name: string,
+    opts?: { required?: boolean; trimWhitespace?: boolean }
+  ) => string;
+};
 
-  /**
-   * Get current circuit state
-   * @returns Current state of the circuit
-   */
-  getState(): CircuitState;
-}
+export type Params = {
+  getToken: () => string;
+  getOwner: () => string;
+  getRepo: () => string;
+  getRunsToKeep: () => number;
+  getRunsOlderThan: () => number;
+  getDryRun: () => boolean;
+  getWorkflowNames: () => string[];
+};
+
+export type RetryDeps = {
+  sleep: Sleep;
+};
+
+export type ApiDeps = {
+  getOctokit: (token: string) => OctokitInstance;
+  sleep: Sleep;
+  now: () => number;
+};
+
+export type CircuitBreakerHandle = {
+  canExecute: () => boolean;
+  recordSuccess: () => void;
+  recordFailure: () => void;
+  getState: () => CircuitState;
+};
+
+export type RunEnv = {
+  params: Params;
+  getApi: (params: ApiParams) => Api;
+  setFailed: (msg: string) => void;
+  setOutput: (name: string, value: string) => void;
+};

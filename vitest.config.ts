@@ -2,9 +2,6 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    globals: true,
-    environment: "node",
-    include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
@@ -13,7 +10,7 @@ export default defineConfig({
         "src/**/*.d.ts",
         "src/**/*.test.ts",
         "src/**/*.spec.ts",
-        "src/**/__tests__/**",
+        "src/config/types.ts",
       ],
       thresholds: {
         lines: 90,
@@ -22,8 +19,5 @@ export default defineConfig({
         statements: 90,
       },
     },
-    clearMocks: true,
-    restoreMocks: true,
-    mockReset: true,
   },
 });

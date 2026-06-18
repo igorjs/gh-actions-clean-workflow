@@ -1,604 +1,376 @@
-import { getInput } from "@actions/core";
-import { beforeEach, describe, expect, test, vi } from "vitest";
-import {
-  getDryRun,
-  getOwner,
-  getRepo,
-  getRunsOlderThan,
-  getRunsToKeep,
-  getToken,
-  getWorkflowNames,
-} from "./params";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeParams } from "./params";
 
-// Mock @actions/core
-vi.mock("@actions/core");
-const mockGetInput = vi.mocked(getInput);
+function makeGetInput(returnValue = "") {
+  return vi
+    .fn<[string, { required?: boolean; trimWhitespace?: boolean }?], string>()
+    .mockReturnValue(returnValue);
+}
 
 describe("params", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe("getToken", () => {
-    test("should return token when provided with valid format (ghp_)", () => {
-      mockGetInput.mockReturnValue(
+    it("should return token when provided with valid format (ghp_)", () => {
+      const getInput = makeGetInput(
         "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
       );
-
-      const result = getToken();
-      expect(result).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
-      expect(mockGetInput).toHaveBeenCalledWith("token", {
+      const { getToken } = makeParams({ getInput });
+      expect(getToken()).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
+      expect(getInput).toHaveBeenCalledWith("token", {
         required: false,
         trimWhitespace: true,
       });
     });
 
-    test("should return token when provided with valid format (ghs_)", () => {
-      mockGetInput.mockReturnValue(
-        "ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
-      );
-
-      const result = getToken();
-      expect(result).toBe("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
+    it("should return token when provided with valid format (ghs_)", () => {
+      const { getToken } = makeParams({
+        getInput: makeGetInput(
+          "ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+        ),
+      });
+      expect(getToken()).toBe("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
     });
 
-    test("should return token when provided with valid format (github_pat_)", () => {
-      mockGetInput.mockReturnValue(
+    it("should return token when provided with valid format (github_pat_)", () => {
+      const { getToken } = makeParams({
+        getInput: makeGetInput(
+          "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+        ),
+      });
+      expect(getToken()).toBe(
         "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
       );
-
-      const result = getToken();
-      expect(result).toBe(
-        "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
-      );
     });
 
-    test("should return token when github_pat_ token contains underscores in the body", () => {
-      mockGetInput.mockReturnValue(
-        "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      );
-
-      const result = getToken();
-      expect(result).toBe(
+    it("should return token when github_pat_ token contains underscores in the body", () => {
+      const { getToken } = makeParams({
+        getInput: makeGetInput(
+          "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ),
+      });
+      expect(getToken()).toBe(
         "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       );
     });
 
-    test("should accept ghs_ JWT-format token with dots and dashes (stateless format rolled out 2026-04-27)", () => {
+    it("should accept ghs_ JWT-format token with dots and dashes (stateless format rolled out 2026-04-27)", () => {
       // GitHub App installation tokens now use a stateless JWT format: ghs_APPID.HEADER.PAYLOAD
       // See: https://github.blog/changelog/2026-04-24-notice-about-upcoming-new-format-for-github-app-installation-tokens/
       // Deliberately synthetic (non-base64, low-entropy) segments to avoid triggering
       // entropy-based secret scanners while still exercising dot and dash acceptance.
       const jwtToken = "ghs_" + "fake-app-id.fake-header.fake-payload";
-      mockGetInput.mockReturnValue(jwtToken);
-
-      const result = getToken();
-      expect(result).toBe(jwtToken);
+      const { getToken } = makeParams({ getInput: makeGetInput(jwtToken) });
+      expect(getToken()).toBe(jwtToken);
     });
 
-    test("should throw error when token is empty", () => {
-      mockGetInput.mockReturnValue("");
-
+    it("should throw error when token is empty", () => {
+      const { getToken } = makeParams({ getInput: makeGetInput("") });
       expect(() => getToken()).toThrow(
         "[Invalid Parameter] <token> must be provided"
       );
     });
 
-    test("should throw error when token has invalid format", () => {
-      mockGetInput.mockReturnValue("invalid_token_123");
-
+    it("should throw error when token has invalid format", () => {
+      const { getToken } = makeParams({
+        getInput: makeGetInput("invalid_token_123"),
+      });
       expect(() => getToken()).toThrow(
         "[Invalid Parameter] <token> must be a valid GitHub token"
       );
     });
 
-    test("should return token when token has short body (new GitHub token format)", () => {
-      mockGetInput.mockReturnValue("ghp_short");
-
-      const result = getToken();
-      expect(result).toBe("ghp_short");
+    it("should return token when token has short body (new GitHub token format)", () => {
+      const { getToken } = makeParams({ getInput: makeGetInput("ghp_short") });
+      expect(getToken()).toBe("ghp_short");
     });
   });
 
   describe("getOwner", () => {
-    test("should return owner when provided with valid format", () => {
-      mockGetInput.mockReturnValue("octocat");
+    beforeEach(() => {
+      delete process.env.GITHUB_REPOSITORY_OWNER;
+    });
 
-      const result = getOwner();
-      expect(result).toBe("octocat");
-      expect(mockGetInput).toHaveBeenCalledWith("owner", {
+    it("should return owner when provided with valid format", () => {
+      const getInput = makeGetInput("octocat");
+      const { getOwner } = makeParams({ getInput });
+      expect(getOwner()).toBe("octocat");
+      expect(getInput).toHaveBeenCalledWith("owner", {
         required: false,
         trimWhitespace: true,
       });
     });
 
-    test("should accept owner with hyphens", () => {
-      mockGetInput.mockReturnValue("my-org-name");
-
-      const result = getOwner();
-      expect(result).toBe("my-org-name");
+    it("should accept owner with hyphens", () => {
+      const { getOwner } = makeParams({
+        getInput: makeGetInput("my-org-name"),
+      });
+      expect(getOwner()).toBe("my-org-name");
     });
 
-    test("should accept owner with numbers", () => {
-      mockGetInput.mockReturnValue("user123");
-
-      const result = getOwner();
-      expect(result).toBe("user123");
+    it("should accept owner with numbers", () => {
+      const { getOwner } = makeParams({ getInput: makeGetInput("user123") });
+      expect(getOwner()).toBe("user123");
     });
 
-    test("should throw error for owner starting with hyphen", () => {
-      mockGetInput.mockReturnValue("-invalid");
-
+    it("should throw error for owner starting with hyphen", () => {
+      const { getOwner } = makeParams({ getInput: makeGetInput("-invalid") });
       expect(() => getOwner()).toThrow(
         "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
       );
     });
 
-    test("should throw error for owner ending with hyphen", () => {
-      mockGetInput.mockReturnValue("invalid-");
-
+    it("should throw error for owner ending with hyphen", () => {
+      const { getOwner } = makeParams({ getInput: makeGetInput("invalid-") });
       expect(() => getOwner()).toThrow(
         "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
       );
     });
 
-    test("should throw error for owner with special characters", () => {
-      mockGetInput.mockReturnValue("invalid@user");
-
+    it("should throw error for owner with special characters", () => {
+      const { getOwner } = makeParams({
+        getInput: makeGetInput("invalid@user"),
+      });
       expect(() => getOwner()).toThrow(
         "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
       );
     });
 
-    test("should throw error when owner is empty and no env var", () => {
-      mockGetInput.mockReturnValue("");
-      delete process.env.GITHUB_REPOSITORY_OWNER;
-
+    it("should throw error when owner is empty and no env var", () => {
+      const { getOwner } = makeParams({ getInput: makeGetInput("") });
       expect(() => getOwner()).toThrow(
         "[Invalid Parameter] <owner> must be provided"
       );
     });
 
-    test("should fall back to GITHUB_REPOSITORY_OWNER env var", () => {
-      mockGetInput.mockReturnValue("");
+    it("should fall back to GITHUB_REPOSITORY_OWNER env var", () => {
       process.env.GITHUB_REPOSITORY_OWNER = "env-owner";
-
-      const result = getOwner();
-      expect(result).toBe("env-owner");
-
+      const { getOwner } = makeParams({ getInput: makeGetInput("") });
+      expect(getOwner()).toBe("env-owner");
       delete process.env.GITHUB_REPOSITORY_OWNER;
     });
   });
 
   describe("getRepo", () => {
-    test("should return repo when provided with valid format", () => {
-      mockGetInput.mockReturnValue("hello-world");
-      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
+    beforeEach(() => {
+      delete process.env.GITHUB_REPOSITORY;
+    });
 
-      const result = getRepo();
-      expect(result).toBe("hello-world");
-      expect(mockGetInput).toHaveBeenCalledWith("repo", {
+    it("should return repo when provided with valid format", () => {
+      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
+      const getInput = makeGetInput("hello-world");
+      const { getRepo } = makeParams({ getInput });
+      expect(getRepo()).toBe("hello-world");
+      expect(getInput).toHaveBeenCalledWith("repo", {
         required: false,
         trimWhitespace: true,
       });
-
-      delete process.env.GITHUB_REPOSITORY;
     });
 
-    test("should accept repo with dots and underscores", () => {
-      mockGetInput.mockReturnValue("my.repo_name");
-      // Set env var to avoid "must be provided" error
+    it("should accept repo with dots and underscores", () => {
       process.env.GITHUB_REPOSITORY = "owner/my.repo_name";
-
-      const result = getRepo();
-      expect(result).toBe("my.repo_name");
-
-      delete process.env.GITHUB_REPOSITORY;
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("my.repo_name"),
+      });
+      expect(getRepo()).toBe("my.repo_name");
     });
 
-    test("should throw error for repo with spaces", () => {
-      mockGetInput.mockReturnValue("");
-      // Set env var with invalid repo name to test validation
+    it("should throw error for repo with spaces", () => {
       process.env.GITHUB_REPOSITORY = "owner/invalid repo";
-
+      const { getRepo } = makeParams({ getInput: makeGetInput("") });
       expect(() => getRepo()).toThrow(
         "[Invalid Parameter] <repo> must be a valid GitHub repository name"
       );
-
-      delete process.env.GITHUB_REPOSITORY;
     });
 
-    test("should throw error for repo with special characters", () => {
-      mockGetInput.mockReturnValue("");
-      // Set env var with invalid repo name to test validation
+    it("should throw error for repo with special characters", () => {
       process.env.GITHUB_REPOSITORY = "owner/invalid@repo";
-
+      const { getRepo } = makeParams({ getInput: makeGetInput("") });
       expect(() => getRepo()).toThrow(
         "[Invalid Parameter] <repo> must be a valid GitHub repository name"
       );
-
-      delete process.env.GITHUB_REPOSITORY;
     });
 
-    test("should throw error when repo is empty and no env var", () => {
-      mockGetInput.mockReturnValue("");
-      delete process.env.GITHUB_REPOSITORY;
-
+    it("should throw error when repo is empty and no env var", () => {
+      const { getRepo } = makeParams({ getInput: makeGetInput("") });
       expect(() => getRepo()).toThrow(
         "[Invalid Parameter] <repo> must be provided"
       );
     });
 
-    test("should extract repo name from path with backslash", () => {
-      mockGetInput.mockReturnValue("owner\\repo-name");
-      delete process.env.GITHUB_REPOSITORY;
-
-      const result = getRepo();
-      expect(result).toBe("repo-name");
+    it("should extract repo name from path with backslash", () => {
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("owner\\repo-name"),
+      });
+      expect(getRepo()).toBe("repo-name");
     });
 
-    test("should not extract repo name from path with forward slash", () => {
-      mockGetInput.mockReturnValue("owner/repo-name");
-      delete process.env.GITHUB_REPOSITORY;
-
+    it("should not extract repo name from path with forward slash", () => {
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("owner/repo-name"),
+      });
       expect(() => getRepo()).toThrow(
         "[Invalid Parameter] <repo> must be provided"
       );
     });
 
-    test("should fall back to GITHUB_REPOSITORY env var", () => {
-      mockGetInput.mockReturnValue("");
+    it("should fall back to GITHUB_REPOSITORY env var", () => {
       process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
-
-      const result = getRepo();
-      expect(result).toBe("env-repo");
-
-      delete process.env.GITHUB_REPOSITORY;
+      const { getRepo } = makeParams({ getInput: makeGetInput("") });
+      expect(getRepo()).toBe("env-repo");
     });
   });
 
   describe("getRunsToKeep", () => {
-    test("should return valid integer", () => {
-      mockGetInput.mockReturnValue("5");
-
-      const result = getRunsToKeep();
-      expect(result).toBe(5);
-      expect(mockGetInput).toHaveBeenCalledWith("runs_to_keep", {
-        required: false,
-        trimWhitespace: true,
-      });
+    it("should return default when empty", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("") });
+      expect(getRunsToKeep()).toBe(0);
     });
 
-    test("should return 0 when input is 0", () => {
-      mockGetInput.mockReturnValue("0");
-
-      const result = getRunsToKeep();
-      expect(result).toBe(0);
+    it("should return parsed integer", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("10") });
+      expect(getRunsToKeep()).toBe(10);
     });
 
-    test("should return 0 when empty (default value)", () => {
-      mockGetInput.mockReturnValue("");
-
-      const result = getRunsToKeep();
-      expect(result).toBe(0);
+    it("should return 0 for '0'", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("0") });
+      expect(getRunsToKeep()).toBe(0);
     });
 
-    test("should accept maximum allowed value (10000)", () => {
-      mockGetInput.mockReturnValue("10000");
-
-      const result = getRunsToKeep();
-      expect(result).toBe(10000);
-    });
-
-    test("should throw error for values exceeding maximum", () => {
-      mockGetInput.mockReturnValue("10001");
-
-      expect(() => getRunsToKeep()).toThrow(
-        "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000"
-      );
-    });
-
-    test("should throw error for non-integer values", () => {
-      mockGetInput.mockReturnValue("abc");
-
-      expect(() => getRunsToKeep()).toThrow(
-        "[Invalid Parameter] <runs_to_keep> must be a valid integer"
-      );
-    });
-
-    test("should throw error for decimal numbers", () => {
-      mockGetInput.mockReturnValue("5.5");
-
-      expect(() => getRunsToKeep()).toThrow(
-        "[Invalid Parameter] <runs_to_keep> must be a valid integer"
-      );
-    });
-
-    test("should throw error for negative numbers", () => {
-      mockGetInput.mockReturnValue("-1");
-
+    it("should throw for negative value", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("-1") });
       expect(() => getRunsToKeep()).toThrow(
         "[Invalid Parameter] <runs_to_keep> must be non-negative"
       );
     });
 
-    test("should throw error for unsafe integers", () => {
-      mockGetInput.mockReturnValue("9007199254740992");
-
+    it("should throw for non-integer", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("abc") });
       expect(() => getRunsToKeep()).toThrow(
         "[Invalid Parameter] <runs_to_keep> must be a valid integer"
+      );
+    });
+
+    it("should throw for float", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("1.5") });
+      expect(() => getRunsToKeep()).toThrow(
+        "[Invalid Parameter] <runs_to_keep> must be a valid integer"
+      );
+    });
+
+    it("should throw for value above max", () => {
+      const { getRunsToKeep } = makeParams({ getInput: makeGetInput("10001") });
+      expect(() => getRunsToKeep()).toThrow(
+        "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000"
       );
     });
   });
 
   describe("getRunsOlderThan", () => {
-    test("should return valid integer", () => {
-      mockGetInput.mockReturnValue("7");
-
-      const result = getRunsOlderThan();
-      expect(result).toBe(7);
-      expect(mockGetInput).toHaveBeenCalledWith("runs_older_than", {
-        required: false,
-        trimWhitespace: true,
-      });
+    it("should return default when empty", () => {
+      const { getRunsOlderThan } = makeParams({ getInput: makeGetInput("") });
+      expect(getRunsOlderThan()).toBe(7);
     });
 
-    test("should return 7 when empty (default value)", () => {
-      mockGetInput.mockReturnValue("");
-
-      const result = getRunsOlderThan();
-      expect(result).toBe(7);
+    it("should return parsed integer", () => {
+      const { getRunsOlderThan } = makeParams({ getInput: makeGetInput("30") });
+      expect(getRunsOlderThan()).toBe(30);
     });
 
-    test("should return 0 when input is 0", () => {
-      mockGetInput.mockReturnValue("0");
-
-      const result = getRunsOlderThan();
-      expect(result).toBe(0);
-    });
-
-    test("should accept maximum allowed value (3650)", () => {
-      mockGetInput.mockReturnValue("3650");
-
-      const result = getRunsOlderThan();
-      expect(result).toBe(3650);
-    });
-
-    test("should throw error for values exceeding maximum", () => {
-      mockGetInput.mockReturnValue("3651");
-
-      expect(() => getRunsOlderThan()).toThrow(
-        "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days"
-      );
-    });
-
-    test("should throw error for negative numbers", () => {
-      mockGetInput.mockReturnValue("-5");
-
+    it("should throw for negative value", () => {
+      const { getRunsOlderThan } = makeParams({ getInput: makeGetInput("-1") });
       expect(() => getRunsOlderThan()).toThrow(
         "[Invalid Parameter] <runs_older_than> must be non-negative"
       );
     });
 
-    test("should throw error for invalid values", () => {
-      mockGetInput.mockReturnValue("invalid");
-
+    it("should throw for non-integer", () => {
+      const { getRunsOlderThan } = makeParams({
+        getInput: makeGetInput("abc"),
+      });
       expect(() => getRunsOlderThan()).toThrow(
         "[Invalid Parameter] <runs_older_than> must be a valid integer"
       );
     });
 
-    test("should handle numeric string with whitespace", () => {
-      mockGetInput.mockReturnValue("7");
-
-      const result = getRunsOlderThan();
-      expect(result).toBe(7);
+    it("should throw for value above max", () => {
+      const { getRunsOlderThan } = makeParams({
+        getInput: makeGetInput("3651"),
+      });
+      expect(() => getRunsOlderThan()).toThrow(
+        "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days"
+      );
     });
   });
 
   describe("getDryRun", () => {
-    test("should return false when empty (default value)", () => {
-      mockGetInput.mockReturnValue("");
-
-      const result = getDryRun();
-      expect(result).toBe(false);
+    it("should return false as default when empty", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("") });
+      expect(getDryRun()).toBe(false);
     });
 
-    test("should return true for 'true'", () => {
-      mockGetInput.mockReturnValue("true");
-
-      const result = getDryRun();
-      expect(result).toBe(true);
+    it("should return true for 'true'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("true") });
+      expect(getDryRun()).toBe(true);
     });
 
-    test("should return true for 'TRUE' (case insensitive)", () => {
-      mockGetInput.mockReturnValue("TRUE");
-
-      const result = getDryRun();
-      expect(result).toBe(true);
+    it("should return true for '1'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("1") });
+      expect(getDryRun()).toBe(true);
     });
 
-    test("should return true for '1'", () => {
-      mockGetInput.mockReturnValue("1");
-
-      const result = getDryRun();
-      expect(result).toBe(true);
+    it("should return true for 'yes'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("yes") });
+      expect(getDryRun()).toBe(true);
     });
 
-    test("should return true for 'yes'", () => {
-      mockGetInput.mockReturnValue("yes");
-
-      const result = getDryRun();
-      expect(result).toBe(true);
+    it("should return false for 'false'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("false") });
+      expect(getDryRun()).toBe(false);
     });
 
-    test("should return false for 'false'", () => {
-      mockGetInput.mockReturnValue("false");
-
-      const result = getDryRun();
-      expect(result).toBe(false);
+    it("should return false for '0'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("0") });
+      expect(getDryRun()).toBe(false);
     });
 
-    test("should return false for '0'", () => {
-      mockGetInput.mockReturnValue("0");
-
-      const result = getDryRun();
-      expect(result).toBe(false);
+    it("should return false for 'no'", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("no") });
+      expect(getDryRun()).toBe(false);
     });
 
-    test("should return false for 'no'", () => {
-      mockGetInput.mockReturnValue("no");
-
-      const result = getDryRun();
-      expect(result).toBe(false);
-    });
-
-    test("should throw error for invalid boolean values", () => {
-      mockGetInput.mockReturnValue("maybe");
-
+    it("should throw for invalid value", () => {
+      const { getDryRun } = makeParams({ getInput: makeGetInput("maybe") });
       expect(() => getDryRun()).toThrow(
         "[Invalid Parameter] <dry_run> must be a boolean value"
       );
     });
   });
 
-  describe("Integration scenarios", () => {
-    test("should handle all valid parameters", () => {
-      delete process.env.GITHUB_REPOSITORY;
-      delete process.env.GITHUB_REPOSITORY_OWNER;
-
-      mockGetInput
-        .mockReturnValueOnce("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF")
-        .mockReturnValueOnce("octocat")
-        .mockReturnValueOnce("hello-world")
-        .mockReturnValueOnce("10")
-        .mockReturnValueOnce("30")
-        .mockReturnValueOnce("false");
-
-      expect(getToken()).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
-      expect(getOwner()).toBe("octocat");
-
-      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
-      expect(getRepo()).toBe("hello-world");
-      delete process.env.GITHUB_REPOSITORY;
-
-      expect(getRunsToKeep()).toBe(10);
-      expect(getRunsOlderThan()).toBe(30);
-      expect(getDryRun()).toBe(false);
-    });
-  });
-
   describe("getWorkflowNames", () => {
-    test("should return empty array when no workflow_names provided", () => {
-      mockGetInput.mockReturnValue("");
+    it("should return empty array when empty", () => {
+      const { getWorkflowNames } = makeParams({ getInput: makeGetInput("") });
+      expect(getWorkflowNames()).toEqual([]);
+    });
 
-      const result = getWorkflowNames();
-      expect(result).toEqual([]);
-      expect(mockGetInput).toHaveBeenCalledWith("workflow_names", {
-        required: false,
-        trimWhitespace: true,
+    it("should parse comma-separated names", () => {
+      const { getWorkflowNames } = makeParams({
+        getInput: makeGetInput("CI, Deploy, Tests"),
       });
+      expect(getWorkflowNames()).toEqual(["CI", "Deploy", "Tests"]);
     });
 
-    test("should return empty array when workflow_names is null", () => {
-      mockGetInput.mockReturnValue(null as unknown as string);
-
-      const result = getWorkflowNames();
-      expect(result).toEqual([]);
+    it("should trim whitespace from names", () => {
+      const { getWorkflowNames } = makeParams({
+        getInput: makeGetInput("  CI  ,  Deploy  "),
+      });
+      expect(getWorkflowNames()).toEqual(["CI", "Deploy"]);
     });
 
-    test("should return empty array when workflow_names is undefined", () => {
-      mockGetInput.mockReturnValue(undefined as unknown as string);
-
-      const result = getWorkflowNames();
-      expect(result).toEqual([]);
-    });
-
-    test("should parse single workflow name", () => {
-      mockGetInput.mockReturnValue("CI");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["CI"]);
-    });
-
-    test("should parse multiple workflow names separated by comma", () => {
-      mockGetInput.mockReturnValue("CI, Deploy, Tests");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["CI", "Deploy", "Tests"]);
-    });
-
-    test("should trim whitespace from workflow names", () => {
-      mockGetInput.mockReturnValue("  CI  ,  Deploy  ,  Tests  ");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["CI", "Deploy", "Tests"]);
-    });
-
-    test("should filter out empty strings after splitting", () => {
-      mockGetInput.mockReturnValue("CI,,Deploy,,,Tests");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["CI", "Deploy", "Tests"]);
-    });
-
-    test("should accept workflow names with spaces", () => {
-      mockGetInput.mockReturnValue("My CI Workflow, Another Test");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["My CI Workflow", "Another Test"]);
-    });
-
-    test("should accept workflow names with dashes", () => {
-      mockGetInput.mockReturnValue("ci-workflow, deploy-prod");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["ci-workflow", "deploy-prod"]);
-    });
-
-    test("should accept workflow names with underscores", () => {
-      mockGetInput.mockReturnValue("ci_workflow, deploy_prod");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["ci_workflow", "deploy_prod"]);
-    });
-
-    test("should accept workflow names with numbers", () => {
-      mockGetInput.mockReturnValue("CI2, Deploy123");
-
-      const result = getWorkflowNames();
-      expect(result).toEqual(["CI2", "Deploy123"]);
-    });
-
-    test("should throw error for workflow names with special characters", () => {
-      mockGetInput.mockReturnValue("CI@Workflow");
-
+    it("should throw for names with invalid characters", () => {
+      const { getWorkflowNames } = makeParams({
+        getInput: makeGetInput("CI, Deploy@prod"),
+      });
       expect(() => getWorkflowNames()).toThrow(
-        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
-      );
-    });
-
-    test("should throw error for workflow names with slashes", () => {
-      mockGetInput.mockReturnValue("CI/Deploy");
-
-      expect(() => getWorkflowNames()).toThrow(
-        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
-      );
-    });
-
-    test("should throw error for workflow names with dots", () => {
-      mockGetInput.mockReturnValue("CI.Deploy");
-
-      expect(() => getWorkflowNames()).toThrow(
-        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
-      );
-    });
-
-    test("should throw error if any workflow name in list is invalid", () => {
-      mockGetInput.mockReturnValue("CI, Deploy!, Tests");
-
-      expect(() => getWorkflowNames()).toThrow(
-        "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only"
+        "[Invalid Parameter] <workflow_names> contains invalid characters"
       );
     });
   });

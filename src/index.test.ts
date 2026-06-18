@@ -1,98 +1,83 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  type MockInstance,
+  vi,
+} from "vitest";
+import type { RunEnv } from "./config/types";
 import { run } from "./index";
 
-// Mock all dependencies
-vi.mock("@actions/core");
-vi.mock("./lib/api");
-vi.mock("./lib/params");
-
-import { setFailed, setOutput } from "@actions/core";
-import { getApi } from "./lib/api";
-import {
-  getDryRun,
-  getOwner,
-  getRepo,
-  getRunsOlderThan,
-  getRunsToKeep,
-  getToken,
-  getWorkflowNames,
-} from "./lib/params";
-
-const mockSetFailed = vi.mocked(setFailed);
-const mockSetOutput = vi.mocked(setOutput);
-const mockGetApi = vi.mocked(getApi);
-const mockGetToken = vi.mocked(getToken);
-const mockGetOwner = vi.mocked(getOwner);
-const mockGetRepo = vi.mocked(getRepo);
-const mockGetRunsToKeep = vi.mocked(getRunsToKeep);
-const mockGetRunsOlderThan = vi.mocked(getRunsOlderThan);
-const mockGetDryRun = vi.mocked(getDryRun);
-const mockGetWorkflowNames = vi.mocked(getWorkflowNames);
-
-describe("index", () => {
-  let mockDeleteRuns: ReturnType<typeof vi.fn>;
-  let mockGetRunsToDelete: ReturnType<typeof vi.fn>;
-  let mockGetMetrics: ReturnType<typeof vi.fn>;
-  let consoleInfoSpy: ReturnType<typeof vi.fn>;
-  let consoleWarnSpy: ReturnType<typeof vi.fn>;
-  let consoleErrorSpy: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Setup console spies
-    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    // Setup default param returns
-    mockGetToken.mockReturnValue(
-      "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
-    );
-    mockGetOwner.mockReturnValue("test-owner");
-    mockGetRepo.mockReturnValue("test-repo");
-    mockGetRunsToKeep.mockReturnValue(5);
-    mockGetRunsOlderThan.mockReturnValue(7);
-    mockGetDryRun.mockReturnValue(false);
-    mockGetWorkflowNames.mockReturnValue([]);
-
-    // Setup API mock
-    mockDeleteRuns = vi.fn();
-    mockGetRunsToDelete = vi.fn();
-    mockGetMetrics = vi.fn().mockReturnValue({
-      totalRequests: 0,
-      successfulRequests: 0,
-      failedRequests: 0,
-      retries: 0,
-      rateLimitHits: 0,
-      circuitBreakerTrips: 0,
-    });
-
-    mockGetApi.mockReturnValue({
-      deleteRuns: mockDeleteRuns,
-      getMetrics: mockGetMetrics,
-      getRunsToDelete: mockGetRunsToDelete,
-    });
+function makeEnv(): RunEnv & {
+  mockDeleteRuns: Mock;
+  mockGetRunsToDelete: Mock;
+  mockGetMetrics: Mock;
+} {
+  const mockDeleteRuns = vi.fn<
+    [number[]],
+    Promise<{ succeeded: number; failed: number }>
+  >();
+  const mockGetRunsToDelete = vi.fn();
+  const mockGetMetrics = vi.fn().mockReturnValue({
+    totalRequests: 0,
+    successfulRequests: 0,
+    failedRequests: 0,
+    retries: 0,
+    rateLimitHits: 0,
+    circuitBreakerTrips: 0,
   });
 
-  test("should successfully delete runs with workflow stats", async () => {
+  return {
+    params: {
+      getToken: vi
+        .fn()
+        .mockReturnValue("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"),
+      getOwner: vi.fn().mockReturnValue("test-owner"),
+      getRepo: vi.fn().mockReturnValue("test-repo"),
+      getRunsToKeep: vi.fn().mockReturnValue(5),
+      getRunsOlderThan: vi.fn().mockReturnValue(7),
+      getDryRun: vi.fn().mockReturnValue(false),
+      getWorkflowNames: vi.fn().mockReturnValue([]),
+    },
+    getApi: vi.fn().mockReturnValue({
+      deleteRuns: mockDeleteRuns,
+      getRunsToDelete: mockGetRunsToDelete,
+      getMetrics: mockGetMetrics,
+    }),
+    setFailed: vi.fn(),
+    setOutput: vi.fn(),
+    mockDeleteRuns,
+    mockGetRunsToDelete,
+    mockGetMetrics,
+  };
+}
+
+describe("index", () => {
+  let infoSpy: MockInstance;
+  let warnSpy: MockInstance;
+  let errorSpy: MockInstance;
+
+  beforeEach(() => {
+    infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("should successfully delete runs with workflow stats", async () => {
+    const env = makeEnv();
     const workflowStats = new Map([
       [100, { total: 10, toDelete: 5 }],
       [200, { total: 8, toDelete: 3 }],
     ]);
-
-    mockGetRunsToDelete.mockResolvedValue({
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3, 4, 5, 6, 7, 8],
       totalRuns: 18,
       workflowStats,
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 8,
-      failed: 0,
-    });
-
-    mockGetMetrics.mockReturnValue({
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 8, failed: 0 });
+    env.mockGetMetrics.mockReturnValue({
       totalRequests: 8,
       successfulRequests: 8,
       failedRequests: 0,
@@ -101,90 +86,70 @@ describe("index", () => {
       circuitBreakerTrips: 0,
     });
 
-    await run();
+    await run(env);
 
-    expect(mockGetToken).toHaveBeenCalled();
-    expect(mockGetOwner).toHaveBeenCalled();
-    expect(mockGetRepo).toHaveBeenCalled();
-    expect(mockGetRunsToKeep).toHaveBeenCalled();
-    expect(mockGetRunsOlderThan).toHaveBeenCalled();
-    expect(mockGetDryRun).toHaveBeenCalled();
-
-    expect(mockGetApi).toHaveBeenCalledWith({
+    expect(env.params.getToken).toHaveBeenCalled();
+    expect(env.getApi).toHaveBeenCalledWith({
       token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
       owner: "test-owner",
       repo: "test-repo",
       dryRun: false,
       workflowNames: [],
     });
-
-    expect(mockGetRunsToDelete).toHaveBeenCalledWith(7, 5);
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(env.mockGetRunsToDelete).toHaveBeenCalledWith(7, 5);
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Fetching workflow runs for test-owner/test-repo..."
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Found 18 runs older than 7 days"
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Workflow 100: keeping 5 runs, deleting 5 runs"
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Workflow 200: keeping 5 runs, deleting 3 runs"
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Deleting 8 total runs across all workflows..."
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith("SUCCESS: Deleted 8 runs");
-
-    expect(mockDeleteRuns).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(mockGetMetrics).toHaveBeenCalled();
-    expect(mockSetFailed).not.toHaveBeenCalled();
-
-    // Verify outputs are set
-    expect(mockSetOutput).toHaveBeenCalledWith("total-runs-found", "18");
-    expect(mockSetOutput).toHaveBeenCalledWith("runs-deleted", "8");
-    expect(mockSetOutput).toHaveBeenCalledWith("runs-failed", "0");
-    expect(mockSetOutput).toHaveBeenCalledWith("total-api-requests", "8");
-    expect(mockSetOutput).toHaveBeenCalledWith("successful-requests", "8");
+    expect(infoSpy).toHaveBeenCalledWith("SUCCESS: Deleted 8 runs");
+    expect(env.mockDeleteRuns).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(env.setFailed).not.toHaveBeenCalled();
+    expect(env.setOutput).toHaveBeenCalledWith("total-runs-found", "18");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-deleted", "8");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("total-api-requests", "8");
+    expect(env.setOutput).toHaveBeenCalledWith("successful-requests", "8");
   });
 
-  test("should handle case with no runs to delete", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should handle case with no runs to delete", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [],
       totalRuns: 5,
       workflowStats: new Map(),
     });
-
-    await run();
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    await run(env);
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Found 5 runs older than 7 days"
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: No runs to delete");
-    expect(mockDeleteRuns).not.toHaveBeenCalled();
-    expect(mockGetMetrics).toHaveBeenCalled();
-    expect(mockSetFailed).not.toHaveBeenCalled();
-
-    // Verify outputs are set even when no runs to delete
-    expect(mockSetOutput).toHaveBeenCalledWith("total-runs-found", "5");
-    expect(mockSetOutput).toHaveBeenCalledWith("runs-deleted", "0");
-    expect(mockSetOutput).toHaveBeenCalledWith("runs-failed", "0");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: No runs to delete");
+    expect(env.mockDeleteRuns).not.toHaveBeenCalled();
+    expect(env.setFailed).not.toHaveBeenCalled();
+    expect(env.setOutput).toHaveBeenCalledWith("total-runs-found", "5");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-deleted", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
   });
 
-  test("should handle partial deletion failures and set action as failed", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should handle partial deletion failures and set action as failed", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3],
       totalRuns: 10,
       workflowStats: new Map([[100, { total: 10, toDelete: 3 }]]),
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 2,
-      failed: 1,
-    });
-
-    mockGetMetrics.mockReturnValue({
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 2, failed: 1 });
+    env.mockGetMetrics.mockReturnValue({
       totalRequests: 3,
       successfulRequests: 2,
       failedRequests: 1,
@@ -192,100 +157,65 @@ describe("index", () => {
       rateLimitHits: 0,
       circuitBreakerTrips: 0,
     });
-
-    await run();
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith("SUCCESS: Deleted 2 runs");
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "WARN: Failed to delete 1 runs"
-    );
-    expect(mockSetFailed).toHaveBeenCalledWith(
+    await run(env);
+    expect(infoSpy).toHaveBeenCalledWith("SUCCESS: Deleted 2 runs");
+    expect(warnSpy).toHaveBeenCalledWith("WARN: Failed to delete 1 runs");
+    expect(env.setFailed).toHaveBeenCalledWith(
       "Failed to delete 1 out of 3 runs. Check logs for details."
     );
   });
 
-  test("should handle dry-run mode", async () => {
-    mockGetDryRun.mockReturnValue(true);
-
+  it("should handle dry-run mode", async () => {
+    const env = makeEnv();
+    (env.params.getDryRun as Mock).mockReturnValue(true);
     const workflowStats = new Map([[100, { total: 5, toDelete: 3 }]]);
-
-    mockGetRunsToDelete.mockResolvedValue({
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3],
       totalRuns: 5,
       workflowStats,
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 3,
-      failed: 0,
-    });
-
-    await run();
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 3, failed: 0 });
+    await run(env);
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: DRY RUN MODE - No runs will be actually deleted"
     );
-    expect(mockGetApi).toHaveBeenCalledWith({
-      token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-      owner: "test-owner",
-      repo: "test-repo",
-      dryRun: true,
-      workflowNames: [],
-    });
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    expect(env.getApi).toHaveBeenCalledWith(
+      expect.objectContaining({ dryRun: true })
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Workflow 100: keeping 2 runs, would delete 3 runs"
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "INFO: Would delete 3 total runs across all workflows..."
-    );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "DRY RUN: Would have deleted 3 runs"
-    );
-    // Dry run should not set failed even with failures
-    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith("DRY RUN: Would have deleted 3 runs");
+    expect(env.setFailed).not.toHaveBeenCalled();
   });
 
-  test("should log workflow names filter when provided", async () => {
-    mockGetWorkflowNames.mockReturnValue(["CI", "Deploy"]);
-
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should log workflow names filter when provided", async () => {
+    const env = makeEnv();
+    (env.params.getWorkflowNames as Mock).mockReturnValue(["CI", "Deploy"]);
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2],
       totalRuns: 2,
       workflowStats: new Map(),
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 2,
-      failed: 0,
-    });
-
-    await run();
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 2, failed: 0 });
+    await run(env);
+    expect(infoSpy).toHaveBeenCalledWith(
       "INFO: Filtering by workflows: CI, Deploy"
     );
-    expect(mockGetApi).toHaveBeenCalledWith({
-      token: "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF",
-      owner: "test-owner",
-      repo: "test-repo",
-      dryRun: false,
-      workflowNames: ["CI", "Deploy"],
-    });
+    expect(env.getApi).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowNames: ["CI", "Deploy"] })
+    );
   });
 
-  test("should log metrics at the end", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should log metrics at the end", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1],
       totalRuns: 1,
       workflowStats: new Map(),
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 1,
-      failed: 0,
-    });
-
-    mockGetMetrics.mockReturnValue({
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 1, failed: 0 });
+    env.mockGetMetrics.mockReturnValue({
       totalRequests: 5,
       successfulRequests: 4,
       failedRequests: 1,
@@ -293,127 +223,105 @@ describe("index", () => {
       rateLimitHits: 1,
       circuitBreakerTrips: 0,
     });
-
-    await run();
-
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: === API Metrics ===");
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Total API requests: 5");
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Successful requests: 4");
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Failed requests: 1");
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Retry attempts: 2");
-    expect(consoleInfoSpy).toHaveBeenCalledWith("INFO: Rate limit hits: 1");
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "INFO: Circuit breaker trips: 0"
-    );
+    await run(env);
+    expect(infoSpy).toHaveBeenCalledWith("INFO: === API Metrics ===");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Total API requests: 5");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Successful requests: 4");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Failed requests: 1");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Retry attempts: 2");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Rate limit hits: 1");
+    expect(infoSpy).toHaveBeenCalledWith("INFO: Circuit breaker trips: 0");
   });
 
-  test("should not log workflow stats when runsToKeep is 0", async () => {
-    mockGetRunsToKeep.mockReturnValue(0);
-
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should not log workflow stats when runsToKeep is 0", async () => {
+    const env = makeEnv();
+    (env.params.getRunsToKeep as Mock).mockReturnValue(0);
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3],
       totalRuns: 3,
       workflowStats: new Map([[100, { total: 3, toDelete: 3 }]]),
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 3,
-      failed: 0,
-    });
-
-    await run();
-
-    expect(consoleInfoSpy).not.toHaveBeenCalledWith(
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 3, failed: 0 });
+    await run(env);
+    expect(infoSpy).not.toHaveBeenCalledWith(
       expect.stringContaining("Workflow")
     );
   });
 
-  test("should not log workflow stats when workflowStats is empty", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should not log workflow stats when workflowStats is empty", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3],
       totalRuns: 3,
       workflowStats: new Map(),
     });
-
-    mockDeleteRuns.mockResolvedValue({
-      succeeded: 3,
-      failed: 0,
-    });
-
-    await run();
-
-    expect(consoleInfoSpy).not.toHaveBeenCalledWith(
+    env.mockDeleteRuns.mockResolvedValue({ succeeded: 3, failed: 0 });
+    await run(env);
+    expect(infoSpy).not.toHaveBeenCalledWith(
       expect.stringContaining("Workflow")
     );
   });
 
-  test("should not log workflow stats when toDelete is 0", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should not log workflow stats when toDelete is 0", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [],
       totalRuns: 5,
       workflowStats: new Map([[100, { total: 5, toDelete: 0 }]]),
     });
-
-    await run();
-
-    expect(consoleInfoSpy).not.toHaveBeenCalledWith(
+    await run(env);
+    expect(infoSpy).not.toHaveBeenCalledWith(
       expect.stringContaining("Workflow 100")
     );
   });
 
-  test("should handle parameter validation errors", async () => {
+  it("should handle parameter validation errors", async () => {
+    const env = makeEnv();
     const error = new Error("[Invalid Parameter] <token> must be provided");
-    mockGetToken.mockImplementation(() => {
+    (env.params as unknown as Record<string, unknown>).getToken = () => {
       throw error;
-    });
-
-    await run();
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-    expect(mockSetFailed).toHaveBeenCalledWith(
+    };
+    await run(env);
+    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(env.setFailed).toHaveBeenCalledWith(
       "[Invalid Parameter] <token> must be provided"
     );
-    expect(mockGetApi).not.toHaveBeenCalled();
+    expect(env.getApi).not.toHaveBeenCalled();
   });
 
-  test("should handle API errors during getRunsToDelete", async () => {
+  it("should handle API errors during getRunsToDelete", async () => {
+    const env = makeEnv();
     const error = new Error("GitHub API rate limit exceeded");
-    mockGetRunsToDelete.mockRejectedValue(error);
-
-    await run();
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-    expect(mockSetFailed).toHaveBeenCalledWith(
+    env.mockGetRunsToDelete.mockRejectedValue(error);
+    await run(env);
+    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(env.setFailed).toHaveBeenCalledWith(
       "GitHub API rate limit exceeded"
     );
-    expect(mockDeleteRuns).not.toHaveBeenCalled();
+    expect(env.mockDeleteRuns).not.toHaveBeenCalled();
   });
 
-  test("should handle API errors during deleteRuns", async () => {
-    mockGetRunsToDelete.mockResolvedValue({
+  it("should handle API errors during deleteRuns", async () => {
+    const env = makeEnv();
+    env.mockGetRunsToDelete.mockResolvedValue({
       runIds: [1, 2, 3],
       totalRuns: 3,
       workflowStats: new Map(),
     });
-
-    const error = new Error("Network connection failed");
-    mockDeleteRuns.mockRejectedValue(error);
-
-    await run();
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-    expect(mockSetFailed).toHaveBeenCalledWith("Network connection failed");
+    env.mockDeleteRuns.mockRejectedValue(
+      new Error("Network connection failed")
+    );
+    await run(env);
+    expect(env.setFailed).toHaveBeenCalledWith("Network connection failed");
   });
 
-  test("should handle errors without message property", async () => {
-    const error = "String error";
-    mockGetToken.mockImplementation(() => {
-      throw error;
-    });
-
-    await run();
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-    expect(mockSetFailed).toHaveBeenCalledWith(undefined);
+  it("should handle errors without message property", async () => {
+    const env = makeEnv();
+    (env.params as unknown as Record<string, unknown>).getToken = () => {
+      throw "String error";
+    };
+    await run(env);
+    expect(errorSpy).toHaveBeenCalledWith("String error");
+    expect(env.setFailed).toHaveBeenCalledWith(undefined);
   });
 });
