@@ -1,5 +1,9 @@
 import { env } from "node:process";
-import { DEFAULTS, ERROR_MESSAGES, VALIDATION_RULES } from "../config/constants";
+import {
+  DEFAULTS,
+  ERROR_MESSAGES,
+  VALIDATION_RULES,
+} from "../config/constants";
 import type { Params, ParamsDeps } from "../config/types";
 
 export function makeParams(deps: ParamsDeps): Params {

@@ -1,5 +1,5 @@
-import { fileURLToPath } from "node:url";
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { getInput, setFailed, setOutput } from "@actions/core";
 import { getOctokit } from "@actions/github";
 import type { ApiMetrics, RunEnv } from "./config/types";
@@ -89,7 +89,9 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
     logWorkflowStats(workflowStats, runsToKeep, dryRun);
 
     const action = dryRun ? "Would delete" : "Deleting";
-    logger.info(`${action} ${runIds.length} total runs across all workflows...`);
+    logger.info(
+      `${action} ${runIds.length} total runs across all workflows...`
+    );
 
     const { failed, succeeded } = await api.deleteRuns(runIds);
 
