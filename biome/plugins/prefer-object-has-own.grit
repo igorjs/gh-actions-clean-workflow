@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Prefer Object.hasOwn() over Object.prototype.hasOwnProperty.call().
+// Object.hasOwn(obj, key) is the ES2022 shorthand; cleaner and avoids the
+// verbose .call() form that eslint-plugin-node used to recommend.
+`Object.prototype.hasOwnProperty.call($obj, $key)` where {
+    register_diagnostic(
+        span = `Object.prototype.hasOwnProperty.call($obj, $key)`,
+        message = "Use Object.hasOwn(obj, key) (ES2022) instead of Object.prototype.hasOwnProperty.call(obj, key)."
+    )
+}
