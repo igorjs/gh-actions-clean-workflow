@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow `new String()`, `new Number()`, `new Boolean()`.
+// These produce objects, not primitives, leading to surprising equality:
+// `new Boolean(false)` is truthy. Use the bare constructors as converters
+// without `new`: String(x), Number(x), Boolean(x).
+`new String($$$)` where {
+    register_diagnostic(
+        span = `new String($$$)`,
+        message = "Use String(x) instead of new String(x). `new String()` creates an object wrapper, not a primitive."
+    )
+}
