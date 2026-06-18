@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Templated by repo-config/modules/hardened-repo/main.tf (variable
+# manage_workflow_dependency_review). Direct edits in the consuming repo
+# are overwritten on the next `terraform apply` against repo-config.
+#
+# Checks every PR for new dependencies that carry known CVEs in the GitHub
+# Advisory Database. Complements osv-scan (which runs on push to main) by
+# blocking vulnerable dependencies BEFORE they are merged.
+#
+# Free for public repos. Not available on private repos on the free tier
+# (returns 403); set manage_workflow_dependency_review = false there.
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/dependency-review-action@da95f2de2dedb3f33a7e6e9c08ea8a68d3ee27f3 # v4.7.1
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+          warn-only: false
