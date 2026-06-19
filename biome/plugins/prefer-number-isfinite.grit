@@ -1,9 +1,0 @@
-// SPDX-License-Identifier: Apache-2.0
-// Prefer Number.isFinite over the global isFinite.
-// The global isFinite("42") returns true (coerces first); Number.isFinite does not.
-`isFinite($x)` where {
-    register_diagnostic(
-        span = `isFinite($x)`,
-        message = "Use Number.isFinite(x) instead of isFinite(x). The global isFinite coerces its argument; Number.isFinite does not."
-    )
-}
