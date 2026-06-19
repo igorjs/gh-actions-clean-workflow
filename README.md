@@ -1,173 +1,188 @@
 # Clean Workflow Action
 
-[![CI](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml) [![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml) [![codecov](https://codecov.io/gh/igorjs/gh-actions-clean-workflow/graph/badge.svg?token=SvXR0ZFpvg)](https://codecov.io/gh/igorjs/gh-actions-clean-workflow)
+> Delete old GitHub Actions workflow runs with retry logic, circuit breaker, rate-limit awareness, and per-workflow filtering. Built for repos that generate a lot of CI noise.
 
-Clean workflow run logs based on configuration with advanced features like retry logic, circuit breaker, rate limiting, and workflow filtering.
+[![CI](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/ci.yml)
+[![Check Dist](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/check-dist.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/igorjs/gh-actions-clean-workflow/gh-pages/badges/coverage.json)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/coverage-badge.yml)
+[![OpenSSF Scorecard](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/scorecard.yml/badge.svg)](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/scorecard.yml)
+[![Marketplace](https://img.shields.io/badge/Marketplace-Clean%20Workflow%20Action-blue?logo=github)](https://github.com/marketplace/actions/clean-workflow-action)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A526-brightgreen.svg)](package.json)
+
+## Quick start
+
+```yaml
+- uses: igorjs/gh-actions-clean-workflow@v7
+  with:
+    runs_older_than: 7  # delete runs older than 7 days
+    runs_to_keep: 5     # keep the 5 most recent runs per workflow
+```
+
+Need a full workflow file you can drop in? See [Examples](#examples) below.
+
+## Table of contents
+
+- [Features](#features)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Permissions](#permissions)
+- [Examples](#examples)
+- [Advanced behavior](#advanced-behavior)
+- [Versioning](#versioning)
+- [Development](#development)
+- [Migrating from v6](#migrating-from-v6)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Features
 
-- 🎯 **Workflow Filtering**: Filter deletions by specific workflow names
-- 🔄 **Automatic Retries**: Exponential backoff retry logic for transient failures
-- 🛡️ **Circuit Breaker**: Prevents cascading failures with automatic recovery
-- ⏱️ **Rate Limiting**: Built-in API rate limit handling with retry-after support
-- 📊 **Detailed Metrics**: Comprehensive API metrics exported as action outputs
-- 🧪 **Dry Run Mode**: Test your configuration without actually deleting runs
-- 📈 **High Test Coverage**: Over 95% code coverage with unit and integration tests
-- ⚡ **Modern Tooling**: Built with TypeScript, Biome.js, and pure-test
+- **Workflow filtering** by name, so you only touch the runs you want
+- **Per-workflow retention** via `runs_to_keep` (keep the N most recent per workflow, delete the rest)
+- **Automatic retries** with exponential backoff on transient failures (5xx, 429, network)
+- **Circuit breaker** that opens after repeated failures and recovers automatically
+- **Rate-limit aware**: respects GitHub's `Retry-After` header and paces requests
+- **Dry run mode** to preview deletions without touching anything
+- **Detailed metrics** exposed as action outputs for monitoring, alerting, or dashboards
+- **Hardened CI**: signed commits, pinned action SHAs, OSV + Socket + CodeQL + betterleaks scanning
 
-## Usage
+## Inputs
 
-Please be aware of the GitHub's API [rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+| Input | Description | Default | Required |
+|---|---|---|---|
+| `token` | GitHub token used for the REST API. Needs `actions: write` on the target repo. | `${{ github.token }}` | No |
+| `owner` | Repository owner. | `${{ github.repository_owner }}` | No |
+| `repo` | Repository name. | extracted from `${{ github.repository }}` | No |
+| `runs_older_than` | Delete runs older than this many days (since the last rerun). | `7` | No |
+| `runs_to_keep` | Keep this many most-recent runs **per workflow**. Set to `0` to delete every eligible run. | `0` | No |
+| `workflow_names` | Comma-separated workflow names to filter. Empty = all workflows. Case-sensitive. | `""` | No |
+| `dry_run` | If `true`, log what would be deleted but don't call the delete API. | `false` | No |
 
-### Parameters
-
-| Parameter | Description | Default | Required |
-|-----------|-------------|---------|----------|
-| `token` | GitHub token for API access | `github.token` | No |
-| `owner` | Repository owner | `github.repository_owner` | No |
-| `repo` | Repository name | Extracted from `github.repository` | No |
-| `runs_older_than` | Days old for a workflow run to be considered old | `7` | No |
-| `runs_to_keep` | Number of latest workflow runs to keep per workflow | `0` | No |
-| `workflow_names` | Comma-separated list of workflow names to filter (empty = all workflows) | `""` | No |
-| `dry_run` | Preview deletions without actually deleting | `false` | No |
-
-### Outputs
+## Outputs
 
 | Output | Description |
-|--------|-------------|
-| `total-runs-found` | Total number of workflow runs found |
-| `runs-deleted` | Number of runs successfully deleted |
-| `runs-failed` | Number of runs that failed to delete |
-| `total-api-requests` | Total number of API requests made |
-| `successful-requests` | Number of successful API requests |
-| `failed-requests` | Number of failed API requests |
-| `retry-attempts` | Number of retry attempts |
-| `rate-limit-hits` | Number of times rate limit was hit |
-| `circuit-breaker-trips` | Number of times circuit breaker opened |
+|---|---|
+| `total-runs-found` | Total runs matched by the filter |
+| `runs-deleted` | Runs successfully deleted |
+| `runs-failed` | Runs that failed to delete |
+| `total-api-requests` | Total API calls (list + delete + retries) |
+| `successful-requests` | API calls that returned 2xx |
+| `failed-requests` | API calls that ultimately failed |
+| `retry-attempts` | Retry attempts across the run |
+| `rate-limit-hits` | Times a 429 / secondary rate limit was observed |
+| `circuit-breaker-trips` | Times the circuit opened to back off |
 
-### Permissions
+## Permissions
 
-This workflow needs write permissions on your actions.
-Be sure to add the correct permissions as follows:
+The workflow that calls this action needs `actions: write` on the target repository so the GitHub API can delete runs.
 
 ```yaml
 permissions:
   actions: write
 ```
 
-### Examples
+If the default `GITHUB_TOKEN` doesn't have enough scope (cross-repo cleanups, org-wide policies, ...), pass a PAT explicitly via the `token` input.
 
-#### Basic Usage
+## Examples
+
+### Basic, scheduled cleanup
+
+Run every Monday at 00:00 UTC, delete runs older than 14 days, keep the 20 most recent per workflow.
 
 ```yaml
+name: Clean workflow runs
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
 jobs:
-  clean-logs:
+  clean:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v7
         with:
-          token: ${{ github.token }} # optional
-          owner: ${{ github.repository_owner }} # optional
-          repo: ${{ github.repository }} # optional
-          runs_older_than: 7 # optional
-          runs_to_keep: 0 # optional
-```
-
-#### Filter by Workflow Names
-
-Clean only specific workflows by name:
-
-```yaml
-jobs:
-  clean-logs:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
-        with:
-          workflow_names: "CI, Tests, Deploy" # Only clean these workflows
           runs_older_than: 14
-          runs_to_keep: 5
+          runs_to_keep: 20
 ```
 
-#### Dry Run Mode
+### Filter by workflow name
 
-Preview what would be deleted without actually deleting:
+Only clean CI / Deploy noise, leave other workflows untouched.
 
 ```yaml
-jobs:
-  clean-logs:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
-        with:
-          dry_run: true # Preview mode
-          runs_older_than: 7
+- uses: igorjs/gh-actions-clean-workflow@v7
+  with:
+    workflow_names: "CI, Deploy, Tests"
+    runs_older_than: 14
+    runs_to_keep: 5
 ```
 
-#### Using Metrics Outputs
+### Dry run
 
-Use the exported metrics for monitoring or alerting:
+Preview what would be deleted without calling the delete API. Useful for the first cron run, or to sanity-check filters.
 
 ```yaml
-jobs:
-  clean-logs:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - name: Clean workflow runs
-        id: clean
-        uses: igorjs/gh-actions-clean-workflow@v7
-        with:
-          runs_older_than: 7
-          runs_to_keep: 10
-
-      - name: Display metrics
-        run: |
-          echo "Total runs found: ${{ steps.clean.outputs.total-runs-found }}"
-          echo "Runs deleted: ${{ steps.clean.outputs.runs-deleted }}"
-          echo "Runs failed: ${{ steps.clean.outputs.runs-failed }}"
-          echo "API requests: ${{ steps.clean.outputs.total-api-requests }}"
-          echo "Rate limit hits: ${{ steps.clean.outputs.rate-limit-hits }}"
+- uses: igorjs/gh-actions-clean-workflow@v7
+  with:
+    dry_run: true
+    runs_older_than: 7
 ```
 
-#### Manual Trigger
+### Consume the metrics outputs
 
 ```yaml
-name: Clean Workflow Logs
+- name: Clean workflow runs
+  id: clean
+  uses: igorjs/gh-actions-clean-workflow@v7
+  with:
+    runs_older_than: 7
+    runs_to_keep: 10
+
+- name: Summarize
+  run: |
+    echo "Found:        ${{ steps.clean.outputs.total-runs-found }}"
+    echo "Deleted:      ${{ steps.clean.outputs.runs-deleted }}"
+    echo "Failed:       ${{ steps.clean.outputs.runs-failed }}"
+    echo "API requests: ${{ steps.clean.outputs.total-api-requests }}"
+    echo "Rate limited: ${{ steps.clean.outputs.rate-limit-hits }}"
+    echo "CB trips:     ${{ steps.clean.outputs.circuit-breaker-trips }}"
+```
+
+<details>
+<summary>Manual trigger with inputs</summary>
+
+```yaml
+name: Clean workflow runs
 
 on:
   workflow_dispatch:
     inputs:
       runs_older_than:
-        description: "The amount of days old to delete"
+        description: "Days old to delete"
         default: "7"
-        required: false
       runs_to_keep:
-        description: "The amount of latest workflows runs to keep"
+        description: "Most recent runs to keep per workflow"
         default: "0"
-        required: false
       workflow_names:
         description: "Comma-separated workflow names (empty = all)"
         default: ""
-        required: false
       dry_run:
-        description: "Dry run mode (preview only)"
+        description: "Dry run mode"
         type: boolean
         default: false
-        required: false
+
+permissions:
+  actions: write
 
 jobs:
-  clean-logs:
+  clean:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v7
         with:
@@ -177,57 +192,37 @@ jobs:
           dry_run: ${{ github.event.inputs.dry_run }}
 ```
 
-#### Scheduled Trigger
+</details>
+
+<details>
+<summary>Scheduled + manual with shared defaults</summary>
 
 ```yaml
-name: Clean Workflow Logs
+name: Clean workflow runs
 
 on:
   schedule:
-    - cron: "0 0 * * 1"  # Runs "At 00:00 on Monday." (see https://crontab.guru)
-
-jobs:
-  clean-logs:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
-        with:
-          runs_older_than: "14"
-          runs_to_keep: "20"
-```
-
-#### Both Manual and Scheduled Triggers
-
-```yaml
-name: Clean Workflow Logs
-
-on:
-  schedule:
-    - cron: "0 0 * * 1"  # Runs "At 00:00 on Monday." (see https://crontab.guru)
-
+    - cron: "0 0 * * 1"
   workflow_dispatch:
     inputs:
       runs_older_than:
-        description: "The amount of days old to delete"
+        description: "Days old to delete"
         default: "7"
-        required: false
       dry_run:
         description: "Dry run mode"
         type: boolean
         default: false
-        required: false
+
+permissions:
+  actions: write
 
 env:
   SCHEDULED_RUNS_OLDER_THAN: "7"
   SCHEDULED_RUNS_TO_KEEP: "20"
 
 jobs:
-  clean-logs:
+  clean:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
     steps:
       - uses: igorjs/gh-actions-clean-workflow@v7
         with:
@@ -236,46 +231,59 @@ jobs:
           dry_run: ${{ github.event.inputs.dry_run || false }}
 ```
 
-## Advanced Features
+</details>
 
-### Retry Logic
+## Advanced behavior
 
-The action automatically retries failed API requests with exponential backoff:
-- Maximum 3 retry attempts
-- Exponential backoff: 1s, 2s, 4s
-- Retries on: 5xx errors, rate limits (429), network failures
-- No retries on: 4xx client errors (except 429)
+### Retry logic
 
-### Circuit Breaker
+Failed requests are retried with exponential backoff before giving up.
 
-Prevents cascading failures and API abuse:
+- Up to 3 retry attempts
+- Backoff: 1s, 2s, 4s
+- Retries on: 5xx server errors, 429 rate limit, transient network failures
+- Does **not** retry on 4xx client errors (except 429)
+
+### Circuit breaker
+
+Prevents the action from hammering an unhealthy API.
+
 - Opens after 5 consecutive failures
-- Automatically recovers after 60 seconds
-- Transitions through CLOSED → OPEN → HALF_OPEN states
-- Metrics tracked via `circuit-breaker-trips` output
+- Stays open for 60 seconds, then transitions to half-open
+- Half-open allows a probe request; success closes the circuit, failure reopens it
+- Trip count exported via `circuit-breaker-trips`
 
-### Rate Limiting
+### Rate limiting
 
-Built-in rate limit handling:
-- Respects GitHub API rate limits
-- Honors `Retry-After` headers
-- 350ms delay between deletions
-- Metrics tracked via `rate-limit-hits` output
+- Honors GitHub's `Retry-After` header on 429 responses
+- 350 ms delay between deletions to stay under secondary rate limits
+- Rate-limit hits exported via `rate-limit-hits`
 
-### Workflow Filtering
+### Workflow filtering
 
-Filter deletions to specific workflows:
-- Comma-separated workflow names
-- Case-sensitive matching
-- Supports alphanumeric, spaces, dashes, and underscores
-- Example: `workflow_names: "CI, Deploy, Tests"`
+- Comma-separated names (`workflow_names: "CI, Deploy"`)
+- **Case-sensitive** match against the workflow's `name:` field
+- Permitted characters: alphanumeric, spaces, dashes, underscores
+
+## Versioning
+
+Pin one of the following based on how aggressively you want updates:
+
+| Tag style | Example | Behavior |
+|---|---|---|
+| Floating major (recommended) | `@v7` | Auto-updates to the latest `v7.x.y` patch/minor on each run. Breaking changes only on major bumps. |
+| Specific tag | `@v7.0.0` | Pinned; never moves. Update manually when you want a new version. |
+| Commit SHA | `@<sha>` | Strictest pin. Use when you need byte-for-byte reproducibility (Dependabot can still bump this). |
+| `@main` | `@main` | Not recommended for production; pulls whatever is on `main` at run time. |
+
+Releases follow [Semantic Versioning](https://semver.org/). See the [Releases page](https://github.com/igorjs/gh-actions-clean-workflow/releases) for changelogs.
 
 ## Development
 
 ### Prerequisites
 
-- Node.js >= 26.0.0
-- pnpm >= 11.5.2 (enforced via `packageManager` field - use [Corepack](https://nodejs.org/api/corepack.html))
+- Node.js >= 26.0.0 (development; the published action runs on GitHub's `node24` runtime)
+- pnpm >= 11.5.2 (enforced via `packageManager`; use [Corepack](https://nodejs.org/api/corepack.html))
 
 ### Setup
 
@@ -284,69 +292,64 @@ corepack enable
 pnpm install
 ```
 
-### Commands
+### Common commands
 
 ```bash
-pnpm run check         # Run Biome linting and formatting checks
-pnpm run check:fix     # Auto-fix Biome issues
-pnpm run test          # Run tests
-pnpm run test:coverage # Run tests with coverage report
-pnpm run build         # Build the action
-pnpm run all           # Run all checks, tests, and build
+pnpm run check         # Biome lint + format check
+pnpm run check:fix     # Auto-fix lint + format
+pnpm run test          # Vitest run
+pnpm run test:watch    # Vitest watch
+pnpm run test:coverage # Vitest run with v8 coverage + thresholds
+pnpm run build         # esbuild bundle to dist/index.js
+pnpm run all           # check + test + build
 ```
 
 ### Testing
 
-The project has comprehensive test coverage (98.93%):
-- 113 tests across 4 test suites
-- Unit tests for all components
-- Integration tests for API interactions
-- Circuit breaker state transition tests
-- Retry logic and error handling tests
+Tests run on Vitest with v8 coverage. Coverage thresholds are enforced by `vitest.config.ts` (lines/functions/statements >= 90%, branches >= 85%); the CI build fails if coverage drops below them. Live coverage is published as a Shields endpoint badge (see top of this README) from the [`Coverage Badge`](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/coverage-badge.yml) workflow.
 
-## Migration Guide
+## Migrating from v6
 
-### From v6 to v7
+v7 keeps the same input names but adds new ones; existing v6 workflows continue to work.
 
-v7 is a major version with breaking changes and new features:
+**Breaking**
 
-**Breaking Changes:**
-- Minimum Node.js version increased to 26.0.0
-- Migrated from ESLint + Prettier to Biome.js
-- Logger class converted to individual functions (internal)
+- Minimum local Node.js version raised to 26.0.0 (only affects contributors; the published action still runs on GitHub's `node24` runtime)
+- Internal tooling switched from ESLint + Prettier to [Biome](https://biomejs.dev), and from Jest/`tsup` to [Vitest](https://vitest.dev) + [esbuild](https://esbuild.github.io). End-user surface is unchanged.
 
-**New Features:**
-- Workflow filtering via `workflow_names` parameter
-- Dry run mode via `dry_run` parameter
-- 9 new metric outputs for monitoring
-- Circuit breaker pattern for fault tolerance
-- Automatic retry with exponential backoff
-- Rate limit handling with retry-after support
+**New**
 
-**Migration:**
-```yaml
-# Old (v6)
+- `workflow_names` input for per-workflow filtering
+- `dry_run` input for preview mode
+- 9 new metric outputs (`total-api-requests`, `circuit-breaker-trips`, etc.)
+- Circuit breaker + retry + rate-limit handling under the hood
+
+**Upgrade**
+
+```diff
 - uses: igorjs/gh-actions-clean-workflow@v6
++ uses: igorjs/gh-actions-clean-workflow@v7
   with:
     runs_older_than: 7
-
-# New (v7)
-- uses: igorjs/gh-actions-clean-workflow@v7
-  with:
-    runs_older_than: 7
-    # Optional new features:
-    workflow_names: "CI, Deploy"  # Filter by workflows
-    dry_run: false                # Dry run mode
++   # Optional new inputs:
++   workflow_names: "CI, Deploy"
++   dry_run: false
 ```
-
-## License
-
-MIT
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+PRs and issues are welcome. Before submitting:
 
-## Support
+- Run `pnpm run all` locally (lint + tests + build)
+- Sign your commits (DCO is enforced)
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/igorjs/gh-actions-clean-workflow/issues).
+See [.github/CONTRIBUTING-RULES.md](.github/CONTRIBUTING-RULES.md) for project-wide contribution rules.
+
+## Security
+
+If you find a vulnerability, please report it privately to the maintainer rather than opening a public issue. Continuous security scanning runs in CI via CodeQL, OSV-Scanner, Socket Security, and betterleaks.
+
+## License
+
+[MIT](LICENSE)
