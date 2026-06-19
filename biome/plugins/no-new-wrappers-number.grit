@@ -1,8 +1,0 @@
-// SPDX-License-Identifier: Apache-2.0
-// Disallow `new Number()` -- creates an object, not a primitive.
-`new Number($$$)` where {
-    register_diagnostic(
-        span = `new Number($$$)`,
-        message = "Use Number(x) instead of new Number(x). `new Number()` creates an object wrapper, not a primitive."
-    )
-}
