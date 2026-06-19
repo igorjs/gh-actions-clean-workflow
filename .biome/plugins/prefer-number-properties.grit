@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Prefer Number.isNaN / Number.isFinite over the global equivalents.
+// The global isNaN("") returns true (coerces to NaN first); Number.isNaN("")
+// returns false. Same issue with isFinite(). The Number.* variants never coerce.
+`isNaN($x)` where {
+    register_diagnostic(
+        span = `isNaN($x)`,
+        message = "Use Number.isNaN(x) instead of isNaN(x). The global isNaN coerces its argument; Number.isNaN does not."
+    )
+}
