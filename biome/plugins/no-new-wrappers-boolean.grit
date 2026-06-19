@@ -1,9 +1,0 @@
-// SPDX-License-Identifier: Apache-2.0
-// Disallow `new Boolean()` -- creates an object, not a primitive.
-// `new Boolean(false)` is truthy because it is an object reference.
-`new Boolean($$$)` where {
-    register_diagnostic(
-        span = `new Boolean($$$)`,
-        message = "Use Boolean(x) instead of new Boolean(x). `new Boolean(false)` is truthy because objects are always truthy."
-    )
-}
