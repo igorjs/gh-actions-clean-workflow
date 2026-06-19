@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow `instanceof Array` checks.
+// `instanceof` breaks across realms (iframes, vm contexts, Workers) because
+// each realm has its own Array constructor. Array.isArray() is realm-safe.
+`$x instanceof Array` where {
+    register_diagnostic(
+        span = `$x instanceof Array`,
+        message = "Use Array.isArray(x) instead of x instanceof Array. instanceof breaks across realms (iframes, vm, Workers)."
+    )
+}
