@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow require() with non-literal arguments (eslint-plugin-security: detect-non-literal-require).
+// A dynamic require path lets an attacker load arbitrary modules. Use static
+// import declarations or ensure the path is fully validated / allow-listed.
+`require($arg)` where {
+    not $arg <: `"$_"`,
+    not $arg <: `'$_'`,
+    register_diagnostic(
+        span = `require($arg)`,
+        message = "Unsafe dynamic require(). Loading modules from attacker-controlled paths enables path-traversal attacks."
+    )
+}
