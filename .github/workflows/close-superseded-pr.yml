@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
       contents: read
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -122,6 +123,15 @@ jobs:
                 pull_number: pr.number,
                 state:       'closed',
               });
+
+              try {
+                await github.rest.issues.lock({
+                  owner:        context.repo.owner,
+                  repo:         context.repo.repo,
+                  issue_number: pr.number,
+                  lock_reason:  'resolved',
+                });
+              } catch { /* non-fatal; locking may fail on repos without the permission */ }
 
               core.info('Closed PR #' + pr.number + ' as superseded by #' + mergedPR.number);
             }

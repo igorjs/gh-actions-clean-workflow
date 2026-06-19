@@ -4,7 +4,7 @@ name: Stale Issues & PRs
 
 on:
   schedule:
-    - cron: "0 9 1 * *"  # 1st of each month at 9am UTC
+    - cron: "0 9 * * 1"  # every Monday at 9am UTC
   workflow_dispatch:
 
 permissions:
@@ -22,11 +22,56 @@ jobs:
             api.github.com:443
             github.com:443
             objects.githubusercontent.com:443
+
+      - name: Exempt collaborator-opened issues
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Ensure the exemption label exists before applying it.
+            try {
+              await github.rest.issues.createLabel({
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                name:        'collaborator-opened',
+                color:       '0075ca',
+                description: 'Opened by a repo collaborator; exempt from stale bot.',
+              });
+            } catch { /* already exists */ }
+
+            let page = 1;
+            while (true) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner:    context.repo.owner,
+                repo:     context.repo.repo,
+                state:    'open',
+                per_page: 100,
+                page,
+              });
+              if (issues.length === 0) break;
+              for (const issue of issues) {
+                if (issue.pull_request) continue;
+                const assoc = issue.author_association;
+                if (['OWNER', 'MEMBER', 'COLLABORATOR'].includes(assoc)) {
+                  try {
+                    await github.rest.issues.addLabels({
+                      owner:        context.repo.owner,
+                      repo:         context.repo.repo,
+                      issue_number: issue.number,
+                      labels:       ['collaborator-opened'],
+                    });
+                  } catch { /* non-fatal */ }
+                }
+              }
+              if (issues.length < 100) break;
+              page++;
+            }
+
       - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         with:
           stale-issue-message: >
             This issue has been automatically marked as stale because it has not had
-            activity in the last 60 days. It will be closed in 14 days if no further
+            activity in the last 14 days. It will be closed in 16 days if no further
             activity occurs. If this issue is still relevant, please comment to keep
             it open.
           stale-pr-message: >
@@ -34,13 +79,13 @@ jobs:
             activity in the last 30 days. It will be closed in 14 days if no further
             activity occurs. If this PR is still in progress, please comment or push
             new commits to keep it open.
-          close-issue-message: "This issue was closed because it has been stale for 14 days with no activity."
+          close-issue-message: "This issue was closed because it has been stale for 16 days with no activity."
           close-pr-message: "This PR was closed because it has been stale for 14 days with no activity."
-          days-before-issue-stale: 60
+          days-before-issue-stale: 14
           days-before-pr-stale: 30
-          days-before-issue-close: 14
+          days-before-issue-close: 16
           days-before-pr-close: 14
           stale-issue-label: "stale"
           stale-pr-label: "stale"
-          exempt-issue-labels: "bug,enhancement,help wanted"
+          exempt-issue-labels: "bug,enhancement,help wanted,collaborator-opened"
           exempt-pr-labels: "breaking"
