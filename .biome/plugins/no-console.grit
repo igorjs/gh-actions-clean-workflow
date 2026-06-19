@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// Disallow console.* calls in library code.
+// Libraries should never write to stdout/stderr directly -- callers
+// cannot silence or redirect output injected this way.
+`console.$_($$$)` where {
+    register_diagnostic(
+        span = `console.$_($$$)`,
+        message = "Unexpected console statement. Remove debug output from library code; callers cannot suppress it."
+    )
+}
