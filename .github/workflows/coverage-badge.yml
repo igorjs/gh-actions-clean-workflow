@@ -65,15 +65,15 @@ jobs:
           mkdir -p _badges
           PCT=$(node -e "console.log(require('./coverage/coverage-summary.json').total.lines.pct)")
           PCT_INT=${PCT%.*}
-          if   [ "$$PCT_INT" -ge 90 ]; then COLOR=brightgreen
-          elif [ "$$PCT_INT" -ge 80 ]; then COLOR=green
-          elif [ "$$PCT_INT" -ge 70 ]; then COLOR=yellowgreen
-          elif [ "$$PCT_INT" -ge 60 ]; then COLOR=yellow
-          elif [ "$$PCT_INT" -ge 50 ]; then COLOR=orange
+          if   [ "$PCT_INT" -ge 90 ]; then COLOR=brightgreen
+          elif [ "$PCT_INT" -ge 80 ]; then COLOR=green
+          elif [ "$PCT_INT" -ge 70 ]; then COLOR=yellowgreen
+          elif [ "$PCT_INT" -ge 60 ]; then COLOR=yellow
+          elif [ "$PCT_INT" -ge 50 ]; then COLOR=orange
           else                              COLOR=red
           fi
           printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' \
-            "$$PCT" "$$COLOR" > _badges/coverage.json
+            "$PCT" "$COLOR" > _badges/coverage.json
           cat _badges/coverage.json
 
       - name: Publish badge to gh-pages
