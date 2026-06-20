@@ -129,23 +129,43 @@ jobs:
             // Accepted keywords from the GitHub autolink spec (case-insensitive).
             // Matches "closes #N", "fixes #N", "resolves #N" and their variants,
             // as well as cross-repo refs ("owner/repo#N").
-            const ISSUE_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+/i;
-            if (!ISSUE_RE.test(body)) {
-              await reject('needs-issue', [
-                '## PR Quality Gate: no linked issue',
-                '',
-                'Every PR must reference an issue that describes the motivation for the change.',
-                '',
-                'Add a closing reference to your PR description:',
-                '',
-                '```',
-                'Closes #N',
-                '```',
-                '',
-                'Replace `N` with the issue number. If no issue exists yet, please open one first.',
-              ].join('\n'));
-              core.setFailed('Rejected: no linked issue in PR body');
-              return;
+            //
+            // Exemption: release-bump PRs aggregate prior merged PRs (each of
+            // which already carried its own linked issue) and have no single
+            // issue to reference. Detected by conventional-commit title prefix
+            // `chore(release):` or branch naming convention `release/...`.
+            //
+            // Gated to trusted authors (OWNER/MEMBER/COLLABORATOR per
+            // pr.author_association) so an outside contributor cannot bypass
+            // the linked-issue gate just by titling a PR `chore(release):` or
+            // pushing from a fork branch named `release/...`.
+            const TRUSTED_ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+            const isTrustedAuthor = TRUSTED_ASSOCIATIONS.includes(pr.author_association);
+            const isReleaseBump = isTrustedAuthor && (
+              /^chore\(release\)/i.test(title) ||
+              /^release\//.test(pr.head.ref)
+            );
+            if (isReleaseBump) {
+              core.info('PR #' + pr.number + ' is a release-bump; exempt from linked-issue requirement');
+            } else {
+              const ISSUE_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+/i;
+              if (!ISSUE_RE.test(body)) {
+                await reject('needs-issue', [
+                  '## PR Quality Gate: no linked issue',
+                  '',
+                  'Every PR must reference an issue that describes the motivation for the change.',
+                  '',
+                  'Add a closing reference to your PR description:',
+                  '',
+                  '```',
+                  'Closes #N',
+                  '```',
+                  '',
+                  'Replace `N` with the issue number. If no issue exists yet, please open one first.',
+                ].join('\n'));
+                core.setFailed('Rejected: no linked issue in PR body');
+                return;
+              }
             }
 
             core.info('PR #' + pr.number + ' passed all quality checks');
