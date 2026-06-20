@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+# Managed by github.com/igorjs-iac/repo-config
+#
+# License compliance gate. Two checks land here:
+#
+#   1. SPDX-License-Identifier headers. Every source file in the repo
+#      (across every language we ship) must begin with a line containing
+#      `SPDX-License-Identifier:`. The comment marker preceding it
+#      (`//`, `#`, `--`, `/*`, `<!--`) is language-specific so we only
+#      grep for the identifier text on line 1. This step is universal:
+#      it runs regardless of `language` and covers `.rs`, `.ts`, `.tsx`,
+#      `.js`, `.jsx`, `.mjs`, `.cjs`, `.go`, `.py`, `.rb`, `.sh`, `.bash`,
+#      `.c`, `.h`, `.cpp`, `.cc`, `.hpp`, `.cs`, `.java`, `.kt`, `.swift`,
+#      `.dart`, `.lua`, `.scala`. Extend the find expression when a new
+#      language joins the repo set.
+#
+#   2. Dependency-license allowlist. Language-specific because each
+#      ecosystem has its own manifest and its own tooling. The
+#      conditional below renders the right step at template time based
+#      on the `language` variable threaded through the `templatefile()`
+#      call. Each repo maintains its own dep-license config (e.g. Rust's
+#      `deny.toml`) so the allowlist can evolve per project.
+#
+# All third-party actions are SHA-pinned and the runner egress is
+# restricted to the endpoints needed for toolchain installation and
+# crate / package downloads.
+
+name: license
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: license-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  license:
+    name: deny + spdx
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            crates.io:443
+            github.com:443
+            index.crates.io:443
+            objects.githubusercontent.com:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
+            sh.rustup.rs:443
+            static.crates.io:443
+            static.rust-lang.org:443
+            sum.golang.org:443
+            proxy.golang.org:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: SPDX headers present on every source file
+        run: |
+          set -euo pipefail
+          missing=$(find . -type f \( \
+              -name "*.rs" -o \
+              -name "*.ts" -o -name "*.tsx" -o \
+              -name "*.js" -o -name "*.jsx" -o -name "*.mjs" -o -name "*.cjs" -o \
+              -name "*.go" -o \
+              -name "*.py" -o \
+              -name "*.rb" -o \
+              -name "*.sh" -o -name "*.bash" -o \
+              -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.cc" -o -name "*.hpp" -o \
+              -name "*.cs" -o \
+              -name "*.java" -o -name "*.kt" -o \
+              -name "*.swift" -o \
+              -name "*.dart" -o \
+              -name "*.lua" -o \
+              -name "*.scala" \
+            \) \
+            -not -path "./target/*" \
+            -not -path "*/target/*" \
+            -not -path "./node_modules/*" \
+            -not -path "*/node_modules/*" \
+            -not -path "./vendor/*" \
+            -not -path "*/vendor/*" \
+            -not -path "./.git/*" \
+            -not -path "./dist/*" \
+            -not -path "./build/*" \
+            | while read -r f; do
+                head -1 "$f" | grep -q "SPDX-License-Identifier:" || echo "$f"
+              done)
+          if [ -n "$missing" ]; then
+            echo "ERROR: missing SPDX-License-Identifier header on:"
+            echo "$missing"
+            exit 1
+          fi
+          echo "OK: SPDX headers present on every source file"
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+
+      - name: license-checker against the project's allowlist
+        run: |
+          set -euo pipefail
+          # license-checker reads the npm dep tree, fails on any license
+          # NOT in the per-repo allowlist. The allowlist file lives at
+          # `.license-checker.allow` (one SPDX id per line) in each repo
+          # so the policy can evolve per project. Missing file = fail.
+          if [ ! -f .license-checker.allow ]; then
+            echo "ERROR: .license-checker.allow not present at repo root"
+            exit 1
+          fi
+          allow=$(paste -sd';' .license-checker.allow)
+          npx --yes license-checker --production --onlyAllow "$allow"
