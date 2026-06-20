@@ -6,13 +6,20 @@
 # overwritten on the next `terraform apply` against repo-config.
 #
 # When a PR is merged into the base branch, finds all other open PRs that
-# touch at least one of the same files, labels them "superseded", posts a
-# comment pointing to the merged PR, and closes them.
+# touch at least one of the same files AND that GitHub considers no longer
+# mergeable (real conflict against the new base), labels them "superseded",
+# posts a comment pointing to the merged PR, and closes them.
 #
-# Rationale: after a merge that rewrites shared files, sibling PRs are
-# almost certainly going to conflict. Closing them immediately keeps the
-# PR queue clean and signals to contributors that they should rebase on
-# main before reopening.
+# Rationale: file-level overlap is a poor predictor of conflict. Two PRs
+# that add resources to different sections of the same file merge cleanly.
+# After a merge, GitHub recomputes the `mergeable_state` of every open PR;
+# this workflow polls that state and only closes PRs that GitHub flagged as
+# `dirty` (real conflict). PRs that touch the same files but merge cleanly
+# are left alone.
+#
+# Opt-out: a PR carrying the label `keep-open` is never closed by this
+# workflow, regardless of conflict state. Use this when you want to handle
+# the rebase manually rather than re-open after auto-close.
 
 name: Close Superseded PRs
 
@@ -73,6 +80,14 @@ jobs:
             for (const pr of openPRs) {
               if (pr.number === mergedPR.number) continue;
 
+              // Opt-out: PRs carrying the `keep-open` label are never closed
+              // by this workflow. Use it when you want to handle the rebase
+              // manually rather than re-open after an auto-close.
+              if (pr.labels.some(l => l.name === 'keep-open')) {
+                core.info('PR #' + pr.number + ' has keep-open label; skipping.');
+                continue;
+              }
+
               let prFiles;
               try {
                 const { data } = await github.rest.pulls.listFiles({
@@ -90,8 +105,42 @@ jobs:
               const overlap = prFiles.filter(f => mergedSet.has(f.filename));
               if (overlap.length === 0) continue;
 
+              // File overlap is necessary but not sufficient. Poll the PR's
+              // mergeable state until GitHub finishes recomputing it (the
+              // base branch just moved). Only close when GitHub reports a
+              // real conflict (`mergeable === false` AND
+              // `mergeable_state === 'dirty'`). Skip when the PR still
+              // merges cleanly, when GitHub cannot determine the state
+              // within the poll window, or when any other state surfaces.
+              let mergeable = null;
+              let state     = null;
+              for (let attempt = 0; attempt < 8; attempt++) {
+                const { data: fresh } = await github.rest.pulls.get({
+                  owner:       context.repo.owner,
+                  repo:        context.repo.repo,
+                  pull_number: pr.number,
+                });
+                if (fresh.mergeable !== null && fresh.mergeable_state !== 'unknown') {
+                  mergeable = fresh.mergeable;
+                  state     = fresh.mergeable_state;
+                  break;
+                }
+                await new Promise(r => setTimeout(r, 3000));
+              }
+
+              if (mergeable === null) {
+                core.warning('PR #' + pr.number + ' mergeable state still unknown after poll; leaving open.');
+                continue;
+              }
+              if (mergeable === true || state !== 'dirty') {
+                core.info('PR #' + pr.number + ' overlaps files but is still mergeable (state=' + state + '); leaving open.');
+                continue;
+              }
+
+              core.info('PR #' + pr.number + ' has real conflict against ' + baseBranch + ' (state=dirty); closing.');
+
               const listed   = overlap.slice(0, 10).map(f => '- `' + f.filename + '`').join('\n');
-              const extra    = overlap.length > 10 ? '\n- … and ' + (overlap.length - 10) + ' more' : '';
+              const extra    = overlap.length > 10 ? '\n- and ' + (overlap.length - 10) + ' more' : '';
 
               await github.rest.issues.createComment({
                 owner:        context.repo.owner,
