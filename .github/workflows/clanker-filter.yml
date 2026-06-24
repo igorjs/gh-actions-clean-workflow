@@ -100,6 +100,16 @@ jobs:
               return;
             }
 
+            // Authors exempt from all quality-gate checks (AI-tell detection,
+            // dash scan, linked-issue requirement). Unapproved-bot rejection
+            // above still applies regardless of this list.
+            const ALLOWLISTED_AUTHORS = [];
+            if (ALLOWLISTED_AUTHORS.includes(author)) {
+              core.info('Author ' + author + ' is on the quality-gate allowlist; skipping all checks');
+              await clearManagedLabels();
+              return;
+            }
+
             // Opaque rejection message shared by every AI-tell gate.
             //
             // RATIONALE: explaining WHY a PR was rejected (the specific
