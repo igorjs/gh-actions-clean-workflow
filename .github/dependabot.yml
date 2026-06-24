@@ -4,6 +4,10 @@
 # month (GitHub does not support pinning to a specific day number). Patch and
 # minor PRs are auto-merged by .github/workflows/dependabot-auto-merge.yml;
 # major-version bumps require manual review. PRs are grouped to minimise noise.
+#
+# When dependabot_version_updates = false only the file header is written;
+# GitHub's automatic security updates (enabled via the repo setting) still run
+# without any entry here.
 
 version: 2
 
