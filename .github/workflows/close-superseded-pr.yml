@@ -17,9 +17,15 @@
 # `dirty` (real conflict). PRs that touch the same files but merge cleanly
 # are left alone.
 #
-# Opt-out: a PR carrying the label `keep-open` is never closed by this
-# workflow, regardless of conflict state. Use this when you want to handle
-# the rebase manually rather than re-open after auto-close.
+# Opt-out: a PR carrying the label `keep-open` is not closed by this
+# workflow, but only when a trusted human added the label. Bots, GitHub
+# Apps, and the default GITHUB_TOKEN cannot bypass the auto-close gate by
+# labeling their own PRs. The check inspects the issue timeline to find
+# the most recent labeled / unlabeled event for `keep-open` and respects
+# the opt-out only when the actor's type is `User` (not `Bot`). Adding
+# a label already requires repo triage permission or above, so the
+# actor-type check is sufficient: any User who could label the PR has
+# been explicitly granted access by the repo owner.
 
 name: Close Superseded PRs
 
@@ -80,12 +86,65 @@ jobs:
             for (const pr of openPRs) {
               if (pr.number === mergedPR.number) continue;
 
-              // Opt-out: PRs carrying the `keep-open` label are never closed
-              // by this workflow. Use it when you want to handle the rebase
-              // manually rather than re-open after an auto-close.
+              // Opt-out: PRs carrying the `keep-open` label are not closed
+              // by this workflow, but the label must have been added by a
+              // trusted human. Bots and GitHub Apps cannot bypass the
+              // auto-close gate by labeling their own PRs.
+              //
+              // Inspect the issue timeline to find the most recent
+              // labeled / unlabeled event for `keep-open`. If the last
+              // labeling actor has type `User`, respect the opt-out (since
+              // adding a label already requires triage permission, which
+              // is granted explicitly per actor). Otherwise log a warning
+              // and proceed with the normal conflict check.
               if (pr.labels.some(l => l.name === 'keep-open')) {
-                core.info('PR #' + pr.number + ' has keep-open label; skipping.');
-                continue;
+                let trusted = false;
+                let actor   = null;
+                try {
+                  const events = await github.paginate(
+                    github.rest.issues.listEventsForTimeline,
+                    {
+                      owner:        context.repo.owner,
+                      repo:         context.repo.repo,
+                      issue_number: pr.number,
+                      per_page:     100,
+                    }
+                  );
+                  let lastLabeled = null;
+                  for (const e of events) {
+                    if (!e.label || e.label.name !== 'keep-open') continue;
+                    if (e.event === 'labeled')   lastLabeled = e;
+                    if (e.event === 'unlabeled') lastLabeled = null;
+                  }
+                  if (lastLabeled && lastLabeled.actor) {
+                    actor = lastLabeled.actor;
+                    if (actor.type === 'User') {
+                      trusted = true;
+                    } else {
+                      core.warning(
+                        'PR #' + pr.number + ' keep-open label was added by ' +
+                        actor.type + ' ' + actor.login + '; ignoring opt-out.'
+                      );
+                    }
+                  } else {
+                    core.warning(
+                      'PR #' + pr.number + ' has keep-open label but no ' +
+                      'labeled event was found in the timeline; ignoring opt-out.'
+                    );
+                  }
+                } catch (err) {
+                  core.warning(
+                    'Could not verify keep-open label author on PR #' +
+                    pr.number + ': ' + err.message + '; ignoring opt-out.'
+                  );
+                }
+                if (trusted) {
+                  core.info(
+                    'PR #' + pr.number + ' has trusted keep-open label from ' +
+                    actor.login + '; skipping.'
+                  );
+                  continue;
+                }
               }
 
               let prFiles;
