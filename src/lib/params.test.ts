@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeParams } from "./params";
 

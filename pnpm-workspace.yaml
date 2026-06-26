@@ -1,17 +1,13 @@
-# Managed by repo-config. Direct edits are overwritten on next terraform apply.
-# Hardened pnpm settings live here; pnpm v10+ ignores them in .npmrc.
-# Repo-specific keys (packages, allowBuilds, overrides) come from
-# var.pnpm_workspace_settings and win over the hardening defaults on conflict.
-"allowBuilds":
-  "esbuild": true
-  "fsevents": true
-"autoInstallPeers": false
-"lockfileIncludeTarballUrl": true
-"overrides":
-  "esbuild": "^0.28.1"
-"preferFrozenLockfile": true
-"resolutionMode": "highest"
-"saveExact": true
-"shamefullyHoist": false
-"strictPeerDependencies": true
-"verifyStoreIntegrity": true
+allowBuilds:
+  esbuild: true
+  fsevents: true
+
+overrides:
+  esbuild: "^0.28.1"
+  undici: "6.27.0"
+
+# Minimal pnpm hardening (pnpm v10+ reads these here, not .npmrc).
+saveExact: true
+strictPeerDependencies: true
+autoInstallPeers: false
+lockfileIncludeTarballUrl: true

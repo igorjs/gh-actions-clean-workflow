@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Type definitions for the application
  */
