@@ -7,7 +7,9 @@
 #      (across every language we ship) must begin with a line containing
 #      `SPDX-License-Identifier:`. The comment marker preceding it
 #      (`//`, `#`, `--`, `/*`, `<!--`) is language-specific so we only
-#      grep for the identifier text on line 1. This step is universal:
+#      grep for the identifier text, scanning the first 5 lines so a
+#      shebang (`#!/usr/bin/env bash`) or encoding declaration on line 1
+#      does not push the header out of range. This step is universal:
 #      it runs regardless of `language` and covers `.rs`, `.ts`, `.tsx`,
 #      `.js`, `.jsx`, `.mjs`, `.cjs`, `.go`, `.py`, `.rb`, `.sh`, `.bash`,
 #      `.c`, `.h`, `.cpp`, `.cc`, `.hpp`, `.cs`, `.java`, `.kt`, `.swift`,
@@ -96,7 +98,7 @@ jobs:
             -not -path "./dist/*" \
             -not -path "./build/*" \
             | while read -r f; do
-                head -1 "$f" | grep -q "SPDX-License-Identifier:" || echo "$f"
+                head -5 "$f" | grep -q "SPDX-License-Identifier:" || echo "$f"
               done)
           if [ -n "$missing" ]; then
             echo "ERROR: missing SPDX-License-Identifier header on:"
