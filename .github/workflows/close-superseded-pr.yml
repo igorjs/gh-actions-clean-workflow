@@ -5,10 +5,11 @@
 # manage_workflow_close_superseded). Direct edits in the consuming repo are
 # overwritten on the next `terraform apply` against repo-config.
 #
-# When a PR is merged into the base branch, finds all other open PRs that
-# touch at least one of the same files AND that GitHub considers no longer
-# mergeable (real conflict against the new base), labels them "superseded",
-# posts a comment pointing to the merged PR, and closes them.
+# When a PR is merged or a commit lands directly on the base branch (e.g.
+# via Terraform), finds all other open PRs that touch at least one of the
+# same files AND that GitHub considers no longer mergeable (real conflict
+# against the new base), labels them "superseded", posts a comment, and
+# closes them.
 #
 # Rationale: file-level overlap is a poor predictor of conflict. Two PRs
 # that add resources to different sections of the same file merge cleanly.
@@ -32,12 +33,16 @@ name: Close Superseded PRs
 on:
   pull_request:
     types: [closed]
+  push:
+    branches: [main]
 
 permissions: {}
 
 jobs:
   close-superseded:
-    if: github.event.pull_request.merged == true
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -57,20 +62,48 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const mergedPR   = context.payload.pull_request;
-            const baseBranch = mergedPR.base.ref;
+            const isPR   = context.eventName === 'pull_request';
+            const isPush = context.eventName === 'push';
 
-            // Files changed in the merged PR (up to 100; plenty for overlap detection).
-            const { data: mergedFiles } = await github.rest.pulls.listFiles({
-              owner:       context.repo.owner,
-              repo:        context.repo.repo,
-              pull_number: mergedPR.number,
-              per_page:    100,
-            });
-            const mergedSet = new Set(mergedFiles.map(f => f.filename));
+            let mergedSet;
+            let baseBranch;
+            let mergedRef; // human-readable source for comments
+
+            if (isPR) {
+              const mergedPR = context.payload.pull_request;
+              baseBranch     = mergedPR.base.ref;
+              mergedRef      = '#' + mergedPR.number + ' ("' + mergedPR.title + '")';
+
+              const { data: mergedFiles } = await github.rest.pulls.listFiles({
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                pull_number: mergedPR.number,
+                per_page:    100,
+              });
+              mergedSet = new Set(mergedFiles.map(f => f.filename));
+            } else {
+              // Direct push (e.g. Terraform commit). Use the compare API to
+              // determine which files changed between the previous and new HEAD.
+              baseBranch = context.payload.ref.replace('refs/heads/', '');
+              mergedRef  = 'commit ' + context.sha.slice(0, 7);
+
+              const before = context.payload.before;
+              if (!before || before === '0000000000000000000000000000000000000000') {
+                core.info('Push has no prior base commit; nothing to supersede.');
+                return;
+              }
+
+              const { data: compare } = await github.rest.repos.compareCommits({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                base:  before,
+                head:  context.sha,
+              });
+              mergedSet = new Set((compare.files || []).map(f => f.filename));
+            }
 
             if (mergedSet.size === 0) {
-              core.info('Merged PR has no changed files; nothing to supersede.');
+              core.info('No changed files detected; nothing to supersede.');
               return;
             }
 
@@ -84,7 +117,6 @@ jobs:
             });
 
             for (const pr of openPRs) {
-              if (pr.number === mergedPR.number) continue;
 
               // Opt-out: PRs carrying the `keep-open` label are not closed
               // by this workflow, but the label must have been added by a
@@ -206,9 +238,9 @@ jobs:
                 repo:         context.repo.repo,
                 issue_number: pr.number,
                 body: [
-                  '## Superseded by #' + mergedPR.number,
+                  '## Superseded by ' + mergedRef,
                   '',
-                  'PR #' + mergedPR.number + ' ("' + mergedPR.title + '") was just merged and modifies the same files as this PR:',
+                  mergedRef + ' landed on `' + baseBranch + '` and modifies the same files as this PR:',
                   '',
                   listed + extra,
                   '',
@@ -241,5 +273,5 @@ jobs:
                 });
               } catch { /* non-fatal; locking may fail on repos without the permission */ }
 
-              core.info('Closed PR #' + pr.number + ' as superseded by #' + mergedPR.number);
+              core.info('Closed PR #' + pr.number + ' as superseded by ' + mergedRef);
             }
