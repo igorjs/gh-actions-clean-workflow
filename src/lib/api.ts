@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { API_CONFIG, CircuitState } from "../config/constants";
 import type {
   Api,

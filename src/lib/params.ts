@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { env } from "node:process";
 import {
   DEFAULTS,
