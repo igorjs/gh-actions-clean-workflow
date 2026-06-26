@@ -38,8 +38,8 @@ export const VALIDATION_RULES = {
   MIN_TOKEN_LENGTH: 40,
   /** Regex for validating GitHub username/org format */
   GITHUB_NAME_REGEX: /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
-  /** Regex for validating workflow name format (allows spaces, dashes, underscores, alphanumeric) */
-  WORKFLOW_NAME_REGEX: /^[a-zA-Z0-9 _-]+$/,
+  /** Regex for validating workflow name format (allows spaces, dots, dashes, underscores, alphanumeric) */
+  WORKFLOW_NAME_REGEX: /^[a-zA-Z0-9 ._-]+$/,
   /** Regex for validating repository name */
   REPO_NAME_REGEX: /^[a-zA-Z0-9._-]+$/,
   /** Regex for validating GitHub token format — only prefix checked per GitHub's 2026-04-24 guidance */
@@ -81,7 +81,7 @@ export const ERROR_MESSAGES = {
   INVALID_DRY_RUN:
     "[Invalid Parameter] <dry_run> must be a boolean value (true/false, yes/no, 1/0)",
   INVALID_WORKFLOW_NAMES_FORMAT:
-    "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dashes, and underscores only",
+    "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dots, dashes, and underscores only",
 } as const;
 
 // Default Values
