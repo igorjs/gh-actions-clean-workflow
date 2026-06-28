@@ -119,9 +119,11 @@ jobs:
           # NOT in the per-repo allowlist. The allowlist file lives at
           # `.license-checker.allow` (one SPDX id per line) in each repo
           # so the policy can evolve per project. Missing file = fail.
+          # Blank lines and `#` comments are ignored, so the file can
+          # carry a header explaining its purpose.
           if [ ! -f .license-checker.allow ]; then
             echo "ERROR: .license-checker.allow not present at repo root"
             exit 1
           fi
-          allow=$(paste -sd';' .license-checker.allow)
+          allow=$(grep -vE '^[[:space:]]*(#|$)' .license-checker.allow | paste -sd';' -)
           npx --yes license-checker --production --onlyAllow "$allow"
