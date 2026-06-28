@@ -1,0 +1,17 @@
+# Bootstrapped by repo-config (github.com/igorjs-iac/repo-config). This
+# repo owns the file after the first apply; edit freely. One SPDX license
+# id per line. Consumed by `license-checker --onlyAllow` in the dep-license
+# gate of .github/workflows/license.yml. Add ids here when a production
+# dependency reports a license not yet listed.
+MIT
+ISC
+Apache-2.0
+BSD-2-Clause
+BSD-3-Clause
+0BSD
+Unlicense
+CC0-1.0
+CC-BY-4.0
+BlueOak-1.0.0
+MIT-0
+Python-2.0
