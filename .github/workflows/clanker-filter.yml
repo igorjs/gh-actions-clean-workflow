@@ -103,7 +103,7 @@ jobs:
             // Authors exempt from all quality-gate checks (AI-tell detection,
             // dash scan, linked-issue requirement). Unapproved-bot rejection
             // above still applies regardless of this list.
-            const ALLOWLISTED_AUTHORS = [];
+            const ALLOWLISTED_AUTHORS = ["igorjs"];
             if (ALLOWLISTED_AUTHORS.includes(author)) {
               core.info('Author ' + author + ' is on the quality-gate allowlist; skipping all checks');
               await clearManagedLabels();
