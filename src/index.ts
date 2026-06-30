@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { getInput, setFailed, setOutput } from "@actions/core";

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { API_CONFIG, HTTP_STATUS } from "../config/constants";
 import type {
   ApiMetrics,
