@@ -4,3 +4,10 @@ allowBuilds:
 
 overrides:
   esbuild: "^0.28.1"
+  undici: "6.27.0"
+
+# Minimal pnpm hardening (pnpm v10+ reads these here, not .npmrc).
+saveExact: true
+strictPeerDependencies: true
+autoInstallPeers: false
+lockfileIncludeTarballUrl: true
