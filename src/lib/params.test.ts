@@ -366,6 +366,13 @@ describe("params", () => {
       expect(getWorkflowNames()).toEqual(["CI", "Deploy"]);
     });
 
+    it("should accept workflow names with dots", () => {
+      const { getWorkflowNames } = makeParams({
+        getInput: makeGetInput("Node.js CI, ci.build, Deploy"),
+      });
+      expect(getWorkflowNames()).toEqual(["Node.js CI", "ci.build", "Deploy"]);
+    });
+
     it("should throw for names with invalid characters", () => {
       const { getWorkflowNames } = makeParams({
         getInput: makeGetInput("CI, Deploy@prod"),
