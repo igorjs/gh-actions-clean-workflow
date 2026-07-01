@@ -93,7 +93,7 @@ jobs:
             }
 
             // Bots that are explicitly allowed to open PRs without human authorship.
-            const ALLOWED_BOTS = ['dependabot[bot]', 'github-actions[bot]'];
+            const ALLOWED_BOTS = ['dependabot[bot]', 'github-actions[bot]', 'igorjs[bot]'];
             if (ALLOWED_BOTS.includes(author)) {
               core.info('Skipping allowed bot: ' + author);
               await clearManagedLabels();
