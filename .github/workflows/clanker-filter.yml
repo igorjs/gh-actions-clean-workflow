@@ -74,7 +74,7 @@ jobs:
             // Labels this workflow manages. Cleared on the success path so
             // a previously-rejected PR that's been reopened with the fix in
             // place doesn't carry stale labels forever.
-            const MANAGED_LABELS = ['gate:needs-issue', 'gate:unapproved-bot', 'gate:ai-generated'];
+            const MANAGED_LABELS = ['gate:quality:needs-issue', 'gate:quality:unapproved-bot', 'gate:quality:rejected'];
             const currentLabels = (pr.labels || []).map(l => l.name);
 
             async function clearManagedLabels() {
@@ -125,7 +125,7 @@ jobs:
             const OPAQUE_REJECTION = [
               '## PR Quality Gate: rejected',
               '',
-              'This pull request did not pass the automated quality review for this repository.',
+              'This pull request was flagged as potentially AI generated and did not pass the automated quality review for this repository.',
               '',
               'Please review the contribution guidelines and resubmit. If you believe this rejection is in error, open an issue.',
             ].join('\n');
@@ -156,7 +156,7 @@ jobs:
 
             // ── 1. Unapproved bot author ────────────────────────────────
             if (author.endsWith('[bot]')) {
-              await reject('gate:unapproved-bot', [
+              await reject('gate:quality:unapproved-bot', [
                 '## PR Quality Gate: unapproved bot author',
                 '',
                 'This PR was opened by `' + author + '`, which is not on the approved automation allow-list.',
@@ -183,7 +183,7 @@ jobs:
             const fullText = title + '\n' + body;
             const aiMatch = AI_PATTERNS.find(p => p.test(fullText));
             if (aiMatch) {
-              await reject('gate:ai-generated', OPAQUE_REJECTION);
+              await reject('gate:quality:rejected', OPAQUE_REJECTION);
               core.setFailed('Rejected: AI-generation markers detected');
               return;
             }
@@ -247,7 +247,7 @@ jobs:
               core.warning('Could not list PR files for em or en dash scan: ' + err.message);
             }
             if (dashViolations.length > 0) {
-              await reject('gate:ai-generated', OPAQUE_REJECTION);
+              await reject('gate:quality:rejected', OPAQUE_REJECTION);
               // Detail is logged to the workflow run only (visible to
               // maintainers, not posted as a PR comment) so AI tools
               // reading the rejection cannot learn what pattern fired.
@@ -286,7 +286,7 @@ jobs:
             } else {
               const ISSUE_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+/i;
               if (!ISSUE_RE.test(body)) {
-                await reject('gate:needs-issue', [
+                await reject('gate:quality:needs-issue', [
                   '## PR Quality Gate: no linked issue',
                   '',
                   'Every PR must reference an issue that describes the motivation for the change.',
