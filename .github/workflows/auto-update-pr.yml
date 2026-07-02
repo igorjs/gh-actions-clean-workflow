@@ -21,17 +21,33 @@ jobs:
             api.github.com:443
             github.com:443
             objects.githubusercontent.com:443
+      # Skip cleanly when the bot App isn't configured (no BOT_APP_CLIENT_ID),
+      # so pushes to main don't red-fail. Add the secret to enable auto-updating.
+      # Read via env, not inline interpolation, to avoid script injection.
+      - name: Check for bot App credentials
+        id: bot
+        env:
+          BOT_APP_CLIENT_ID: ${{ secrets.BOT_APP_CLIENT_ID }}
+        run: |
+          if [ -n "$BOT_APP_CLIENT_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::BOT_APP_CLIENT_ID not set; skipping PR auto-update."
+          fi
       # Mint a bot App token so branch updates are attributed to the App (which
       # has write access), not github-actions[bot]. Updates pushed with the
       # default GITHUB_TOKEN surface as "workflow awaiting approval" on the PRs.
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: steps.bot.outputs.configured == 'true'
         id: app-token
         with:
-          app-id: ${{ secrets.BOT_APP_CLIENT_ID }}
+          client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
       - name: Update open PRs with latest main
+        if: steps.bot.outputs.configured == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ steps.app-token.outputs.token }}
