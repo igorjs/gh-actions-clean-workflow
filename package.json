@@ -34,10 +34,10 @@
     "@actions/github": "^9.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
+    "@biomejs/biome": "^2.5.2",
     "@vitest/coverage-v8": "^4.1.9",
     "@octokit/types": "^16.0.0",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "vitest": "^4.1.9",
     "esbuild": "^0.28.1",
     "globals": "^17.7.0",
