@@ -23,7 +23,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -31,7 +31,7 @@ jobs:
             github.com:443
             objects.githubusercontent.com:443
 
-      - uses: igorjs/gh-actions-clean-workflow@8de2bf6a685b49cbece3bdb16ca5cdb827684161 # v7
+      - uses: igorjs/gh-actions-clean-workflow@7d77b747b6e55fc693bc27d65fc9878b151e4155 # v7
         with:
           runs_older_than: 7
           runs_to_keep: 10
