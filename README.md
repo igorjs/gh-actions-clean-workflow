@@ -256,7 +256,7 @@ Prevents the action from hammering an unhealthy API.
 ### Rate limiting
 
 - Honors GitHub's `Retry-After` header on 429 responses
-- 350 ms delay between deletions to stay under secondary rate limits
+- Deletes in concurrent batches of 20, with a paced delay between batches (~170 deletions/min) to stay under secondary rate limits
 - Rate-limit hits exported via `rate-limit-hits`
 
 ### Workflow filtering

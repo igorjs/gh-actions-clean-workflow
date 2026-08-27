@@ -7,7 +7,13 @@
 export const API_CONFIG = {
   /** Maximum number of concurrent delete requests to respect GitHub's 100 concurrent limit */
   BATCH_SIZE: 20,
-  /** Rate limiting delay in ms (350ms = ~170 deletions/min with safety margin) */
+  /**
+   * Per-run rate limiting delay in ms, applied once per batch (delay *
+   * batch size) between batches of BATCH_SIZE concurrent deletions, not
+   * per individual delete. With the defaults below (20 * 350ms = 7s
+   * between batches of 20) this paces out to ~170 deletions/min with a
+   * safety margin under GitHub's secondary rate limits.
+   */
   RATE_LIMIT_DELAY_MS: 350,
   /** Maximum retries for failed requests */
   MAX_RETRIES: 3,
