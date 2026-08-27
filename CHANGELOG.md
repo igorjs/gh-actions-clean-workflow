@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A 403 response is no longer always treated as a rate limit. Only a 403 carrying a `Retry-After` header (GitHub's secondary rate limit signal) is retried; a bare 403 (typically a missing `actions: write` scope) now fails fast with an actionable message instead of retrying for up to four minutes.
 
+### Removed
+
+- **Breaking**: Removed the deprecated `days_old` input. It had been silently ignored since v7.0.1 (the action always used `runs_older_than`); GitHub Actions now warns on the undeclared input instead of accepting it silently. Use `runs_older_than` instead.
+- **Breaking**: Removed the deprecated `result` output. It had never been written since v7.0.1; the metrics output has always been `runs-deleted`. Use `runs-deleted` instead.
+
 ## [7.0.1] - 2026-06-25
 
 ### Fixed
@@ -50,8 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Respects `Retry-After` headers
   - 350ms delay between deletions
   - Automatic retry on rate limit errors
-- **Comprehensive Test Suite**: Increased test coverage from ~70% to 98.93%
-  - 113 tests across 4 test suites
+- **Comprehensive Test Suite**: Increased test coverage from ~70% to 98.54%
+  - 98 tests across 4 test suites
   - Circuit breaker state transition tests
   - Retry logic and error handling tests
   - Workflow filtering tests

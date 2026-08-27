@@ -283,11 +283,18 @@ describe("index", () => {
       throw error;
     };
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "ERROR: [Invalid Parameter] <token> must be provided"
+    );
     expect(env.setFailed).toHaveBeenCalledWith(
       "[Invalid Parameter] <token> must be provided"
     );
     expect(env.getApi).not.toHaveBeenCalled();
+    expect(env.setOutput).toHaveBeenCalledWith("total-runs-found", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-deleted", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("total-api-requests", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("circuit-breaker-trips", "0");
   });
 
   it("should handle API errors during getRunsToDelete", async () => {
@@ -295,11 +302,15 @@ describe("index", () => {
     const error = new Error("GitHub API rate limit exceeded");
     env.mockGetRunsToDelete.mockRejectedValue(error);
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "ERROR: GitHub API rate limit exceeded"
+    );
     expect(env.setFailed).toHaveBeenCalledWith(
       "GitHub API rate limit exceeded"
     );
     expect(env.mockDeleteRuns).not.toHaveBeenCalled();
+    expect(env.setOutput).toHaveBeenCalledWith("total-runs-found", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
   });
 
   it("should handle API errors during deleteRuns", async () => {
@@ -314,15 +325,48 @@ describe("index", () => {
     );
     await run(env);
     expect(env.setFailed).toHaveBeenCalledWith("Network connection failed");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
   });
 
-  it("should handle errors without message property", async () => {
+  it("should export the api's accumulated metrics (not just zeros) when an error occurs after the api is created", async () => {
+    const env = makeEnv();
+    env.mockGetMetrics.mockReturnValue({
+      totalRequests: 4,
+      successfulRequests: 1,
+      failedRequests: 3,
+      retries: 2,
+      rateLimitHits: 1,
+      circuitBreakerTrips: 0,
+    });
+    env.mockGetRunsToDelete.mockRejectedValue(new Error("boom"));
+    await run(env);
+    expect(env.setFailed).toHaveBeenCalledWith("boom");
+    expect(env.setOutput).toHaveBeenCalledWith("total-runs-found", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-deleted", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("runs-failed", "0");
+    expect(env.setOutput).toHaveBeenCalledWith("total-api-requests", "4");
+    expect(env.setOutput).toHaveBeenCalledWith("failed-requests", "3");
+    expect(env.setOutput).toHaveBeenCalledWith("retry-attempts", "2");
+    expect(env.setOutput).toHaveBeenCalledWith("rate-limit-hits", "1");
+  });
+
+  it("should handle a thrown string by using it directly as the failure message", async () => {
     const env = makeEnv();
     (env.params as unknown as Record<string, unknown>).getToken = () => {
       throw "String error";
     };
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith("String error");
-    expect(env.setFailed).toHaveBeenCalledWith(undefined);
+    expect(errorSpy).toHaveBeenCalledWith("ERROR: String error");
+    expect(env.setFailed).toHaveBeenCalledWith("String error");
+  });
+
+  it("should handle a thrown non-Error object by stringifying it as the failure message", async () => {
+    const env = makeEnv();
+    (env.params as unknown as Record<string, unknown>).getToken = () => {
+      throw { code: "EBADTOKEN" };
+    };
+    await run(env);
+    expect(errorSpy).toHaveBeenCalledWith("ERROR: [object Object]");
+    expect(env.setFailed).toHaveBeenCalledWith("[object Object]");
   });
 });
