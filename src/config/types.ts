@@ -124,6 +124,7 @@ export type ParamsDeps = {
     name: string,
     opts?: { required?: boolean; trimWhitespace?: boolean }
   ) => string;
+  setSecret: (value: string) => void;
 };
 
 export type Params = {
