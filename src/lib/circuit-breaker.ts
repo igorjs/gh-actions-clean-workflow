@@ -8,6 +8,7 @@ export function createCircuitBreaker(): CircuitBreakerHandle {
   let failureCount = 0;
   let successCount = 0;
   let lastFailureTime: number | null = null;
+  let tripCount = 0;
 
   function recordSuccess(): void {
     failureCount = 0;
@@ -30,10 +31,12 @@ export function createCircuitBreaker(): CircuitBreakerHandle {
     ) {
       logger.warn(`Circuit breaker OPEN - too many failures (${failureCount})`);
       state = CircuitState.OPEN;
+      tripCount++;
     } else if (state === CircuitState.HALF_OPEN) {
       logger.warn("Circuit breaker OPEN - recovery failed");
       state = CircuitState.OPEN;
       successCount = 0;
+      tripCount++;
     }
   }
 
@@ -56,5 +59,9 @@ export function createCircuitBreaker(): CircuitBreakerHandle {
     return state;
   }
 
-  return { canExecute, recordSuccess, recordFailure, getState };
+  function getTripCount(): number {
+    return tripCount;
+  }
+
+  return { canExecute, recordSuccess, recordFailure, getState, getTripCount };
 }
