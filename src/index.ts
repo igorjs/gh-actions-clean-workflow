@@ -123,7 +123,7 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
   } catch (err) {
     console.error(err);
     exportMetrics(0, 0, 0, api?.getMetrics() ?? ZERO_METRICS, setOut);
-    fail((err as Error).message);
+    fail(err instanceof Error ? err.message : String(err));
   }
 }
 
