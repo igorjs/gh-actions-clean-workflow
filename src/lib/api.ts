@@ -40,6 +40,9 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
 
       if (dryRun) {
         logger.dryRun(`Would delete run #${id}`);
+        // Deliberate delay, not an oversight: no API call happens here, but
+        // keeping the pacing gives users previewing a dry run a realistic
+        // sense of how long the real deletion run will take.
         await sleep(100);
         return;
       }
