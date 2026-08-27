@@ -21,11 +21,6 @@ inputs:
     description: "The name of the repository"
     required: false
     default: ${{ github.repository }}
-  days_old:
-    description: "The amount of days old to delete"
-    required: false
-    default: "7"
-    deprecationMessage: "The parameter days_old is deprecated and will be removed in the next update. Please use runs_older_than instead."
   runs_older_than:
     description: "The amount of days for a workflow run, since its last rerun, be considered old"
     required: false
