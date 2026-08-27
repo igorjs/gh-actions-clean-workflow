@@ -156,7 +156,7 @@ describe("params", () => {
     });
 
     it("should return repo when provided with valid format", () => {
-      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
+      process.env.GITHUB_REPOSITORY = "octocat/some-other-repo";
       const getInput = makeGetInput("hello-world");
       const { getRepo } = makeParams({ getInput });
       expect(getRepo()).toBe("hello-world");
@@ -164,6 +164,14 @@ describe("params", () => {
         required: false,
         trimWhitespace: true,
       });
+    });
+
+    it("should prefer a bare repo name input over a different GITHUB_REPOSITORY env var (cross-repo targeting)", () => {
+      process.env.GITHUB_REPOSITORY = "octocat/current-repo";
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("other-repo"),
+      });
+      expect(getRepo()).toBe("other-repo");
     });
 
     it("should accept repo with dots and underscores", () => {
@@ -197,20 +205,11 @@ describe("params", () => {
       );
     });
 
-    it("should extract repo name from path with backslash", () => {
-      const { getRepo } = makeParams({
-        getInput: makeGetInput("owner\\repo-name"),
-      });
-      expect(getRepo()).toBe("repo-name");
-    });
-
-    it("should not extract repo name from path with forward slash", () => {
+    it("should extract repo name from an owner/repo input (matches the github.repository default)", () => {
       const { getRepo } = makeParams({
         getInput: makeGetInput("owner/repo-name"),
       });
-      expect(() => getRepo()).toThrow(
-        "[Invalid Parameter] <repo> must be provided"
-      );
+      expect(getRepo()).toBe("repo-name");
     });
 
     it("should fall back to GITHUB_REPOSITORY env var", () => {
