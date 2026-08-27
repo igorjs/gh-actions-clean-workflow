@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking**: Removed the deprecated `days_old` input. It had been silently ignored since v7.0.1 (the action always used `runs_older_than`); GitHub Actions now warns on the undeclared input instead of accepting it silently. Use `runs_older_than` instead.
+
 ## [7.0.1] - 2026-06-25
 
 ### Fixed
