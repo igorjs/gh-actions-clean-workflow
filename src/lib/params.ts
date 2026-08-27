@@ -34,8 +34,8 @@ export function makeParams(deps: ParamsDeps): Params {
     const currentRepository = env.GITHUB_REPOSITORY?.slice(
       env.GITHUB_REPOSITORY.indexOf("/") + 1
     );
-    const parameterRepository = /\\/i.test(value)
-      ? value.slice(value.indexOf("\\") + 1)
+    const parameterRepository = value
+      ? value.slice(value.lastIndexOf("/") + 1)
       : undefined;
     const repo = parameterRepository || currentRepository;
     if (!repo) throw new Error(ERROR_MESSAGES.INVALID_REPO);
