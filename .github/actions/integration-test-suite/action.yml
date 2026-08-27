@@ -33,13 +33,25 @@ runs:
         echo "Rate limit hits: ${{ steps.basic.outputs['rate-limit-hits'] }}"
         echo "Circuit breaker trips: ${{ steps.basic.outputs['circuit-breaker-trips'] }}"
 
+    - name: Verify metrics (basic)
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.basic.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.basic.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.basic.outputs['runs-failed'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
+
     # Test 2: Workflow filtering
     - name: Test workflow name filtering
       id: filter
       uses: ./
       with:
         dry_run: true
-        workflow_names: "Test and Lint, Check Dist"
+        workflow_names: "CI, Check Dist"
         runs_older_than: 30
         runs_to_keep: 10
 
@@ -47,10 +59,22 @@ runs:
       shell: bash
       run: |
         echo "=== Workflow Filtering Metrics ==="
-        echo "Filtered workflows: Test and Lint, Check Dist"
+        echo "Filtered workflows: CI, Check Dist"
         echo "Total runs found: ${{ steps.filter.outputs['total-runs-found'] }}"
         echo "Runs to delete: ${{ steps.filter.outputs['runs-deleted'] }}"
         echo "API requests: ${{ steps.filter.outputs['total-api-requests'] }}"
+
+    - name: Verify filtered metrics
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.filter.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.filter.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.filter.outputs['runs-failed'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
 
     # Test 3: Keep all recent runs (runs_to_keep = 100)
     - name: Test keeping many runs
@@ -69,6 +93,18 @@ runs:
         echo "Total runs found: ${{ steps.keep-many.outputs['total-runs-found'] }}"
         echo "Runs to delete: ${{ steps.keep-many.outputs['runs-deleted'] }}"
 
+    - name: Verify keep-many metrics
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.keep-many.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.keep-many.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.keep-many.outputs['runs-failed'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
+
     # Test 4: Delete all old runs (runs_to_keep = 0)
     - name: Test deleting all old runs
       id: delete-all
@@ -85,6 +121,21 @@ runs:
         echo "Older than: 90 days"
         echo "Total runs found: ${{ steps.delete-all.outputs['total-runs-found'] }}"
         echo "Runs to delete: ${{ steps.delete-all.outputs['runs-deleted'] }}"
+
+    - name: Verify delete-all metrics
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.delete-all.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.delete-all.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.delete-all.outputs['runs-failed'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
+        # runs_to_keep is 0, so every run found is eligible for deletion.
+        assert_eq "runs-deleted (== total-runs-found when runs_to_keep=0)" \
+          "$RUNS_DELETED" "$TOTAL_RUNS_FOUND"
 
     # Test 5: Short retention period
     - name: Test short retention
@@ -103,13 +154,25 @@ runs:
         echo "Total runs found: ${{ steps.short.outputs['total-runs-found'] }}"
         echo "Runs to delete: ${{ steps.short.outputs['runs-deleted'] }}"
 
+    - name: Verify short retention metrics
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.short.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.short.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.short.outputs['runs-failed'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
+
     # Test 6: Combined filtering and retention
     - name: Test combined features
       id: combined
       uses: ./
       with:
         dry_run: true
-        workflow_names: "Clean Logs, Dependabot"
+        workflow_names: "Commit Lint, Coverage Badge"
         runs_older_than: 14
         runs_to_keep: 3
 
@@ -117,9 +180,23 @@ runs:
       shell: bash
       run: |
         echo "=== Combined Features Metrics ==="
-        echo "Workflows: Clean Logs, Dependabot"
+        echo "Workflows: Commit Lint, Coverage Badge"
         echo "Older than: 14 days"
         echo "Runs to keep: 3"
         echo "Total runs found: ${{ steps.combined.outputs['total-runs-found'] }}"
         echo "Runs to delete: ${{ steps.combined.outputs['runs-deleted'] }}"
         echo "Circuit breaker trips: ${{ steps.combined.outputs['circuit-breaker-trips'] }}"
+
+    - name: Verify combined metrics
+      shell: bash
+      env:
+        TOTAL_RUNS_FOUND: ${{ steps.combined.outputs['total-runs-found'] }}
+        RUNS_DELETED: ${{ steps.combined.outputs['runs-deleted'] }}
+        RUNS_FAILED: ${{ steps.combined.outputs['runs-failed'] }}
+        CIRCUIT_BREAKER_TRIPS: ${{ steps.combined.outputs['circuit-breaker-trips'] }}
+      run: |
+        source "${GITHUB_ACTION_PATH}/verify-metrics.sh"
+        assert_nonneg_int "total-runs-found" "$TOTAL_RUNS_FOUND"
+        assert_nonneg_int "runs-deleted" "$RUNS_DELETED"
+        assert_eq "runs-failed" "$RUNS_FAILED" "0"
+        assert_eq "circuit-breaker-trips" "$CIRCUIT_BREAKER_TRIPS" "0"
