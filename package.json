@@ -16,11 +16,12 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
+    "typecheck": "tsc --noEmit",
     "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node24 --format=esm --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "all": "pnpm run check && pnpm run test && pnpm run build"
+    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "keywords": [
     "GitHub",
