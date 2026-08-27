@@ -236,6 +236,17 @@ jobs:
 
 ## Advanced behavior
 
+### Retention
+
+`runs_to_keep` and `runs_older_than` filter independently, then combine:
+
+1. `runs_older_than` selects the candidate pool: only runs older than this many days are considered for deletion at all. Anything newer is never touched, regardless of `runs_to_keep`.
+2. `runs_to_keep` then retains the N newest runs **within that already-old pool**, per workflow, and only the remainder is deleted.
+
+In other words, `runs_to_keep` does not mean "keep the N newest runs overall". A run inside the retention window (newer than `runs_older_than`) is kept automatically and isn't counted against `runs_to_keep` at all; `runs_to_keep` only decides how many of the *old* runs survive.
+
+Example: with `runs_older_than: 30` and `runs_to_keep: 5`, a workflow with 3 runs newer than 30 days and 20 runs older than 30 days ends up with the 3 recent runs plus the 5 newest of the 20 old ones kept, 15 old runs deleted.
+
 ### Retry logic
 
 Failed requests are retried with exponential backoff before giving up.
