@@ -240,6 +240,21 @@ describe("retry", () => {
       expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
     });
 
+    it("should wrap a non-error thrown value into an Error before classifying it", async () => {
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const withRetry = makeRetry({ sleep });
+      const metrics = makeMetrics();
+      const circuitBreaker = makeCircuitBreaker();
+      const operation = vi.fn().mockRejectedValue("boom");
+
+      await expect(
+        withRetry(operation, "op", metrics, circuitBreaker)
+      ).rejects.toThrow("boom");
+
+      expect(metrics.failedRequests).toBe(1);
+      expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
+    });
+
     it("should classify a message containing 'rate limit' as a rate limit even without a matching status", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
