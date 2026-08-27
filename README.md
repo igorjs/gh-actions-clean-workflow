@@ -313,6 +313,7 @@ Tests run on Vitest with v8 coverage. Coverage thresholds are enforced by `vites
 
 **Breaking**
 
+- `days_old` has been removed. It was deprecated since v4, and in v7.0.1 it was silently ignored: the action always used `runs_older_than` regardless of what `days_old` was set to. GitHub Actions now warns on the undeclared input instead of accepting it silently.
 - `result` output has been removed. It was never written since v7.0.1; the metrics output has always been `runs-deleted`.
 
 **Upgrade**
@@ -321,13 +322,16 @@ Tests run on Vitest with v8 coverage. Coverage thresholds are enforced by `vites
 - uses: igorjs/gh-actions-clean-workflow@v7
 + uses: igorjs/gh-actions-clean-workflow@v8
   with:
-    runs_older_than: 30
+-   days_old: 30
++   runs_older_than: 30
 
 - name: Summarize
   run: |
 -   echo "Deleted: ${{ steps.clean.outputs.result }}"
 +   echo "Deleted: ${{ steps.clean.outputs.runs-deleted }}"
 ```
+
+If your workflow already used `runs_older_than`, no change is needed beyond replacing `result` with `runs-deleted` and bumping the version tag.
 
 ## Migrating from v6
 
