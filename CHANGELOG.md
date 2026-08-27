@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A 403 response is no longer always treated as a rate limit. Only a 403 carrying a `Retry-After` header (GitHub's secondary rate limit signal) is retried; a bare 403 (typically a missing `actions: write` scope) now fails fast with an actionable message instead of retrying for up to four minutes.
+
 ## [7.0.1] - 2026-06-25
 
 ### Fixed
