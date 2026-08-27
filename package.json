@@ -34,13 +34,13 @@
     "@actions/github": "^9.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@octokit/types": "^16.0.0",
-    "@types/node": "^26.1.2",
-    "vitest": "^4.1.10",
-    "esbuild": "^0.28.1",
-    "globals": "^17.8.0",
+    "@biomejs/biome": "^2.5.10",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@octokit/types": "^17.0.0",
+    "@types/node": "^26.4.0",
+    "vitest": "^4.1.11",
+    "esbuild": "^0.28.2",
+    "globals": "^17.11.0",
     "typescript": "^7.0.2"
   }
 }
