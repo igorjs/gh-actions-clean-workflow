@@ -155,6 +155,49 @@ describe("retry", () => {
       expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
     });
 
+    it("should fail fast on a bare 403 (no Retry-After) instead of treating it as a rate limit", async () => {
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const withRetry = makeRetry({ sleep });
+      const metrics = makeMetrics();
+      const circuitBreaker = makeCircuitBreaker();
+      const error = makeHttpError("Resource not accessible by integration", {
+        status: 403,
+      });
+      const operation = vi.fn().mockRejectedValue(error);
+
+      await expect(
+        withRetry(operation, "op", metrics, circuitBreaker)
+      ).rejects.toThrow(/actions: write/);
+
+      expect(sleep).not.toHaveBeenCalled();
+      expect(operation).toHaveBeenCalledTimes(1);
+      expect(metrics.rateLimitHits).toBe(0);
+      expect(metrics.failedRequests).toBe(1);
+      expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
+    });
+
+    it("should still treat a 403 with a Retry-After header as a rate limit", async () => {
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const withRetry = makeRetry({ sleep });
+      const metrics = makeMetrics();
+      const circuitBreaker = makeCircuitBreaker();
+      const operation = vi
+        .fn()
+        .mockRejectedValueOnce(
+          makeHttpError("secondary rate limit", {
+            status: 403,
+            retryAfter: "3",
+          })
+        )
+        .mockResolvedValueOnce("ok");
+
+      await withRetry(operation, "op", metrics, circuitBreaker);
+
+      expect(sleep).toHaveBeenCalledWith(3000);
+      expect(metrics.rateLimitHits).toBe(1);
+      expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
+    });
+
     it("should throw the last error and record a failure once retries are exhausted", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });

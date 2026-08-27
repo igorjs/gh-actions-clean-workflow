@@ -7,8 +7,12 @@
   "fsevents": true
 "autoInstallPeers": false
 "lockfileIncludeTarballUrl": true
+minimumReleaseAgeExclude:
+  - '@types/node@26.4.0'
 "overrides":
   "esbuild": "^0.28.1"
+  "nanoid": "^3.3.18"
+  "undici": "^6.28.0"
 "preferFrozenLockfile": true
 "resolutionMode": "highest"
 "saveExact": true

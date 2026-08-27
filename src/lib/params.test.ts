@@ -8,13 +8,18 @@ function makeGetInput(returnValue = "") {
     .mockReturnValue(returnValue);
 }
 
+function makeSetSecret() {
+  return vi.fn<[string], void>();
+}
+
 describe("params", () => {
   describe("getToken", () => {
     it("should return token when provided with valid format (ghp_)", () => {
       const getInput = makeGetInput(
         "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
       );
-      const { getToken } = makeParams({ getInput });
+      const setSecret = makeSetSecret();
+      const { getToken } = makeParams({ getInput, setSecret });
       expect(getToken()).toBe("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
       expect(getInput).toHaveBeenCalledWith("token", {
         required: false,
@@ -27,6 +32,7 @@ describe("params", () => {
         getInput: makeGetInput(
           "ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
         ),
+        setSecret: makeSetSecret(),
       });
       expect(getToken()).toBe("ghs_1234567890abcdefghijklmnopqrstuvwxyzABCDEF");
     });
@@ -36,6 +42,7 @@ describe("params", () => {
         getInput: makeGetInput(
           "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
         ),
+        setSecret: makeSetSecret(),
       });
       expect(getToken()).toBe(
         "github_pat_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
@@ -47,6 +54,7 @@ describe("params", () => {
         getInput: makeGetInput(
           "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         ),
+        setSecret: makeSetSecret(),
       });
       expect(getToken()).toBe(
         "github_pat_11AAABBB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -59,12 +67,18 @@ describe("params", () => {
       // Deliberately synthetic (non-base64, low-entropy) segments to avoid triggering
       // entropy-based secret scanners while still exercising dot and dash acceptance.
       const jwtToken = "ghs_" + "fake-app-id.fake-header.fake-payload";
-      const { getToken } = makeParams({ getInput: makeGetInput(jwtToken) });
+      const { getToken } = makeParams({
+        getInput: makeGetInput(jwtToken),
+        setSecret: makeSetSecret(),
+      });
       expect(getToken()).toBe(jwtToken);
     });
 
     it("should throw error when token is empty", () => {
-      const { getToken } = makeParams({ getInput: makeGetInput("") });
+      const { getToken } = makeParams({
+        getInput: makeGetInput(""),
+        setSecret: makeSetSecret(),
+      });
       expect(() => getToken()).toThrow(
         "[Invalid Parameter] <token> must be provided"
       );
@@ -73,6 +87,7 @@ describe("params", () => {
     it("should throw error when token has invalid format", () => {
       const { getToken } = makeParams({
         getInput: makeGetInput("invalid_token_123"),
+        setSecret: makeSetSecret(),
       });
       expect(() => getToken()).toThrow(
         "[Invalid Parameter] <token> must be a valid GitHub token"
@@ -80,8 +95,35 @@ describe("params", () => {
     });
 
     it("should return token when token has short body (new GitHub token format)", () => {
-      const { getToken } = makeParams({ getInput: makeGetInput("ghp_short") });
+      const { getToken } = makeParams({
+        getInput: makeGetInput("ghp_short"),
+        setSecret: makeSetSecret(),
+      });
       expect(getToken()).toBe("ghp_short");
+    });
+
+    it("should register the token as a secret after successful validation", () => {
+      const setSecret = makeSetSecret();
+      const { getToken } = makeParams({
+        getInput: makeGetInput(
+          "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+        ),
+        setSecret,
+      });
+      getToken();
+      expect(setSecret).toHaveBeenCalledWith(
+        "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF"
+      );
+    });
+
+    it("should not register a secret when token validation throws", () => {
+      const setSecret = makeSetSecret();
+      const { getToken } = makeParams({
+        getInput: makeGetInput("invalid_token_123"),
+        setSecret,
+      });
+      expect(() => getToken()).toThrow();
+      expect(setSecret).not.toHaveBeenCalled();
     });
   });
 
@@ -156,7 +198,7 @@ describe("params", () => {
     });
 
     it("should return repo when provided with valid format", () => {
-      process.env.GITHUB_REPOSITORY = "octocat/hello-world";
+      process.env.GITHUB_REPOSITORY = "octocat/some-other-repo";
       const getInput = makeGetInput("hello-world");
       const { getRepo } = makeParams({ getInput });
       expect(getRepo()).toBe("hello-world");
@@ -164,6 +206,14 @@ describe("params", () => {
         required: false,
         trimWhitespace: true,
       });
+    });
+
+    it("should prefer a bare repo name input over a different GITHUB_REPOSITORY env var (cross-repo targeting)", () => {
+      process.env.GITHUB_REPOSITORY = "octocat/current-repo";
+      const { getRepo } = makeParams({
+        getInput: makeGetInput("other-repo"),
+      });
+      expect(getRepo()).toBe("other-repo");
     });
 
     it("should accept repo with dots and underscores", () => {
@@ -197,20 +247,11 @@ describe("params", () => {
       );
     });
 
-    it("should extract repo name from path with backslash", () => {
-      const { getRepo } = makeParams({
-        getInput: makeGetInput("owner\\repo-name"),
-      });
-      expect(getRepo()).toBe("repo-name");
-    });
-
-    it("should not extract repo name from path with forward slash", () => {
+    it("should extract repo name from an owner/repo input (matches the github.repository default)", () => {
       const { getRepo } = makeParams({
         getInput: makeGetInput("owner/repo-name"),
       });
-      expect(() => getRepo()).toThrow(
-        "[Invalid Parameter] <repo> must be provided"
-      );
+      expect(getRepo()).toBe("repo-name");
     });
 
     it("should fall back to GITHUB_REPOSITORY env var", () => {
