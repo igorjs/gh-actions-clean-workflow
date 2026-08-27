@@ -33,7 +33,6 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
 
     async function deleteRunById(id: number): Promise<void> {
       if (!circuitBreaker.canExecute()) {
-        metrics.circuitBreakerTrips++;
         throw new Error(
           `Circuit breaker is ${circuitBreaker.getState()} - skipping deletion of run #${id}`
         );
@@ -173,7 +172,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
     }
 
     function getMetrics(): ApiMetrics {
-      return { ...metrics };
+      return { ...metrics, circuitBreakerTrips: circuitBreaker.getTripCount() };
     }
 
     return { deleteRuns, getRunsToDelete, getMetrics };

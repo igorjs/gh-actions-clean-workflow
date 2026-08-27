@@ -105,6 +105,29 @@ describe("api", () => {
       expect(result.failed).toBe(0);
       expect(deps.mockDeleteWorkflowRun).not.toHaveBeenCalled();
     });
+
+    it("should count circuit-breaker-trips once per open transition, not once per skipped run", async () => {
+      // Regression test: circuitBreakerTrips used to increment once per run
+      // skipped while the circuit was already OPEN, so one trip mid-batch
+      // could report a value like 12 instead of 1.
+      const deps = makeTestDeps();
+      const clientError = Object.assign(new Error("bad request"), {
+        status: 400,
+      });
+      deps.mockDeleteWorkflowRun.mockRejectedValue(clientError);
+      const api = makeApi(deps)(BASE_PARAMS);
+
+      // 25 runs = one batch of 20 (all immediate client-error failures;
+      // FAILURE_THRESHOLD is 5, so the breaker trips to OPEN partway
+      // through) + a second batch of 5 that deleteRuns short-circuits as
+      // failed once it observes the breaker is OPEN after batch one.
+      const runIds = Array.from({ length: 25 }, (_, i) => i + 1);
+      const result = await api.deleteRuns(runIds);
+
+      expect(result.succeeded).toBe(0);
+      expect(result.failed).toBe(25);
+      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
+    });
   });
 
   describe("getRunsToDelete", () => {

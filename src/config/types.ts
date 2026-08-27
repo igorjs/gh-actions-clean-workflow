@@ -151,6 +151,7 @@ export type CircuitBreakerHandle = {
   recordSuccess: () => void;
   recordFailure: () => void;
   getState: () => CircuitState;
+  getTripCount: () => number;
 };
 
 export type RunEnv = {
