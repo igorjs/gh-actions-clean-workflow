@@ -283,7 +283,9 @@ describe("index", () => {
       throw error;
     };
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "ERROR: [Invalid Parameter] <token> must be provided"
+    );
     expect(env.setFailed).toHaveBeenCalledWith(
       "[Invalid Parameter] <token> must be provided"
     );
@@ -295,7 +297,9 @@ describe("index", () => {
     const error = new Error("GitHub API rate limit exceeded");
     env.mockGetRunsToDelete.mockRejectedValue(error);
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith(error);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "ERROR: GitHub API rate limit exceeded"
+    );
     expect(env.setFailed).toHaveBeenCalledWith(
       "GitHub API rate limit exceeded"
     );
@@ -322,7 +326,7 @@ describe("index", () => {
       throw "String error";
     };
     await run(env);
-    expect(errorSpy).toHaveBeenCalledWith("String error");
+    expect(errorSpy).toHaveBeenCalledWith("ERROR: String error");
     expect(env.setFailed).toHaveBeenCalledWith(undefined);
   });
 });

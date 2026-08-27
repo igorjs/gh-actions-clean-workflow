@@ -111,7 +111,7 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
       );
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err instanceof Error ? err.message : String(err));
     fail((err as Error).message);
   }
 }
