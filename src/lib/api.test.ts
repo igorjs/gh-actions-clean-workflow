@@ -85,6 +85,35 @@ describe("api", () => {
       expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledTimes(25);
     });
 
+    it("should pace once between batches (delay * batch size), not once per deletion", async () => {
+      // Regression test: the delay used to live inside each concurrent
+      // per-run task, where it overlapped across the whole batch and had
+      // no effect on real throughput (see constants.ts RATE_LIMIT_DELAY_MS).
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
+      const runIds = Array.from({ length: 25 }, (_, i) => i + 1); // 2 batches of 20 + 5
+      await api.deleteRuns(runIds);
+
+      // One pacing sleep between the two batches, not one per run and not
+      // one after the final (fifth) batch.
+      const pacingSleepCalls = deps.sleep.mock.calls.filter(
+        ([ms]) => ms === 350 * 20
+      );
+      expect(pacingSleepCalls).toHaveLength(1);
+    });
+
+    it("should not pace between batches in dry-run mode", async () => {
+      const deps = makeTestDeps();
+      const api = makeApi(deps)({ ...BASE_PARAMS, dryRun: true });
+      const runIds = Array.from({ length: 25 }, (_, i) => i + 1);
+      await api.deleteRuns(runIds);
+
+      const pacingSleepCalls = deps.sleep.mock.calls.filter(
+        ([ms]) => ms === 350 * 20
+      );
+      expect(pacingSleepCalls).toHaveLength(0);
+    });
+
     it("should handle partial failures", async () => {
       const deps = makeTestDeps();
       deps.mockDeleteWorkflowRun.mockResolvedValueOnce({});

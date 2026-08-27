@@ -63,8 +63,6 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
         const errorMessage = (err as Error).message || "Unknown error";
         logger.error(`Failed to delete run #${id}: ${errorMessage}`);
         throw err;
-      } finally {
-        await sleep(API_CONFIG.RATE_LIMIT_DELAY_MS);
       }
     }
 
@@ -87,6 +85,15 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
           logger.warn("Circuit breaker OPEN - stopping further deletions");
           failed += runs.length - (i + batch.length);
           break;
+        }
+
+        // Pace between batches rather than inside each concurrent task: a
+        // per-task delay in deleteRunById overlapped across the whole batch
+        // and had no effect on real throughput. Skipped for dry runs (no
+        // API calls made) and after the final batch (nothing left to pace).
+        const hasMoreBatches = i + batch.length < runs.length;
+        if (!dryRun && hasMoreBatches) {
+          await sleep(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
         }
       }
 
