@@ -112,7 +112,7 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
     }
   } catch (err) {
     console.error(err);
-    fail((err as Error).message);
+    fail(err instanceof Error ? err.message : String(err));
   }
 }
 

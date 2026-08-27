@@ -316,13 +316,22 @@ describe("index", () => {
     expect(env.setFailed).toHaveBeenCalledWith("Network connection failed");
   });
 
-  it("should handle errors without message property", async () => {
+  it("should handle a thrown string by using it directly as the failure message", async () => {
     const env = makeEnv();
     (env.params as unknown as Record<string, unknown>).getToken = () => {
       throw "String error";
     };
     await run(env);
     expect(errorSpy).toHaveBeenCalledWith("String error");
-    expect(env.setFailed).toHaveBeenCalledWith(undefined);
+    expect(env.setFailed).toHaveBeenCalledWith("String error");
+  });
+
+  it("should handle a thrown non-Error object by stringifying it as the failure message", async () => {
+    const env = makeEnv();
+    (env.params as unknown as Record<string, unknown>).getToken = () => {
+      throw { code: "EBADTOKEN" };
+    };
+    await run(env);
+    expect(env.setFailed).toHaveBeenCalledWith("[object Object]");
   });
 });
