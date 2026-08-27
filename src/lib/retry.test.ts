@@ -173,6 +173,30 @@ describe("retry", () => {
       expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
     });
 
+    it("should record a failure when rate limiting persists through every retry", async () => {
+      // Regression test: a rate limit on the final attempt used to sleep and
+      // continue straight into `throw lastError` without ever incrementing
+      // failedRequests or calling circuitBreaker.recordFailure().
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const withRetry = makeRetry({ sleep });
+      const metrics = makeMetrics();
+      const circuitBreaker = makeCircuitBreaker();
+      const error = makeHttpError("rate limited", {
+        status: 429,
+        retryAfter: "1",
+      });
+      const operation = vi.fn().mockRejectedValue(error);
+
+      await expect(
+        withRetry(operation, "op", metrics, circuitBreaker)
+      ).rejects.toThrow("rate limited");
+
+      expect(operation).toHaveBeenCalledTimes(4);
+      expect(metrics.rateLimitHits).toBe(4);
+      expect(metrics.failedRequests).toBe(1);
+      expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
+    });
+
     it("should classify a message containing 'rate limit' as a rate limit even without a matching status", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
