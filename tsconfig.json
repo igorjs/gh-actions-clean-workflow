@@ -6,12 +6,9 @@
     "moduleResolution": "Bundler",
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true
   },
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "node_modules",
-    "dist"
-  ]
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "node_modules", "dist"]
 }
