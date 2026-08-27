@@ -274,7 +274,7 @@ Prevents the action from hammering an unhealthy API.
 
 - Comma-separated names (`workflow_names: "CI, Deploy"`)
 - **Case-sensitive** match against the workflow's `name:` field
-- Permitted characters: alphanumeric, spaces, dashes, underscores
+- Permitted characters: alphanumeric, spaces, dots, dashes, underscores
 
 ## Versioning
 
