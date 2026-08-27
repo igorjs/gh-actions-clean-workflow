@@ -11,6 +11,15 @@ import {
 import { CircuitState } from "../config/constants";
 import { createCircuitBreaker } from "./circuit-breaker";
 
+function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
+  vi.useFakeTimers();
+  const cb = createCircuitBreaker();
+  for (let i = 0; i < 5; i++) cb.recordFailure();
+  vi.advanceTimersByTime(60000);
+  cb.canExecute(); // triggers HALF_OPEN transition
+  return cb;
+}
+
 describe("CircuitBreaker", () => {
   let consoleInfoSpy: MockInstance;
   let consoleWarnSpy: MockInstance;
@@ -89,15 +98,6 @@ describe("CircuitBreaker", () => {
   });
 
   describe("HALF_OPEN state behavior", () => {
-    function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      vi.advanceTimersByTime(60000);
-      cb.canExecute(); // triggers HALF_OPEN transition
-      return cb;
-    }
-
     it("should allow execution in HALF_OPEN state", () => {
       const cb = openThenHalfOpen();
       expect(cb.canExecute()).toBe(true);
@@ -149,6 +149,41 @@ describe("CircuitBreaker", () => {
       cb.canExecute();
       cb.recordFailure();
       expect(cb.getState()).toBe(CircuitState.OPEN);
+    });
+  });
+
+  describe("getTripCount", () => {
+    it("should start at 0", () => {
+      const cb = createCircuitBreaker();
+      expect(cb.getTripCount()).toBe(0);
+    });
+
+    it("should increment exactly once on a CLOSED -> OPEN transition", () => {
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      expect(cb.getTripCount()).toBe(1);
+    });
+
+    it("should not increment further while remaining OPEN", () => {
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < 5; i++) cb.recordFailure();
+      cb.recordFailure();
+      cb.recordFailure();
+      expect(cb.getTripCount()).toBe(1);
+    });
+
+    it("should increment again on a HALF_OPEN -> OPEN transition", () => {
+      const cb = openThenHalfOpen();
+      cb.recordFailure();
+      expect(cb.getTripCount()).toBe(2);
+    });
+
+    it("should not increment when HALF_OPEN recovers to CLOSED", () => {
+      const cb = openThenHalfOpen();
+      cb.recordSuccess();
+      cb.recordSuccess();
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
+      expect(cb.getTripCount()).toBe(1);
     });
   });
 
