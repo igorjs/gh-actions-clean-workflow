@@ -91,6 +91,10 @@ export function makeRetry(deps: RetryDeps) {
 
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
+          if (attempt === API_CONFIG.MAX_RETRIES) {
+            metrics.failedRequests++;
+            circuitBreaker.recordFailure();
+          }
           continue;
         }
 
