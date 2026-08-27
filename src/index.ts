@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { getInput, setFailed, setOutput } from "@actions/core";
+import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
 import type { ApiMetrics, RunEnv } from "./config/types";
 import { makeApi } from "./lib/api";
@@ -47,7 +47,7 @@ function logWorkflowStats(
 
 function makeDefaultEnv(): RunEnv {
   return {
-    params: makeParams({ getInput }),
+    params: makeParams({ getInput, setSecret }),
     getApi: makeApi({ getOctokit, sleep: nodeSetTimeout, now: Date.now }),
     setFailed,
     setOutput,
