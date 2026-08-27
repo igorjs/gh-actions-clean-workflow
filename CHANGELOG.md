@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking**: Removed the deprecated `result` output. It had never been written since v7.0.1; the metrics output has always been `runs-deleted`. Use `runs-deleted` instead.
+
 ## [7.0.1] - 2026-06-25
 
 ### Fixed

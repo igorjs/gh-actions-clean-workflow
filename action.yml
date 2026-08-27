@@ -44,8 +44,6 @@ inputs:
     default: "false"
 
 outputs:
-  result:
-    description: "The number of workflows deleted (deprecated, use runs-deleted)"
   total-runs-found:
     description: "Total number of workflow runs found"
   runs-deleted:
