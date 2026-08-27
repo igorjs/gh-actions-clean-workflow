@@ -74,6 +74,24 @@ describe("params", () => {
       expect(getToken()).toBe(jwtToken);
     });
 
+    it("should accept a ~520-character ghs_ stateless token with two dots (per the 2026-05-15 override-header changelog)", () => {
+      // GitHub's stateless installation token format is a ghs_-prefixed JWT,
+      // ~520 characters long, containing exactly two dots (header.payload.signature).
+      // See: https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header
+      // Built via repetition (not a literal secret-shaped string) to avoid tripping
+      // entropy-based secret scanners while still exercising the real length and dot count.
+      const segment = "fake-low-entropy-segment-".repeat(7);
+      const jwtToken = `ghs_${segment}.${segment}.${segment}`;
+      expect(jwtToken.length).toBeGreaterThan(500);
+      expect(jwtToken.split(".").length - 1).toBe(2);
+
+      const { getToken } = makeParams({
+        getInput: makeGetInput(jwtToken),
+        setSecret: makeSetSecret(),
+      });
+      expect(getToken()).toBe(jwtToken);
+    });
+
     it("should throw error when token is empty", () => {
       const { getToken } = makeParams({
         getInput: makeGetInput(""),

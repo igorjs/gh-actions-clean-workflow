@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A 403 response is no longer always treated as a rate limit. Only a 403 carrying a `Retry-After` header (GitHub's secondary rate limit signal) is retried; a bare 403 (typically a missing `actions: write` scope) now fails fast with an actionable message instead of retrying for up to four minutes.
+- Confirmed token validation is ready for GitHub's new stateless installation token format (`ghs_`-prefixed JWT, ~520 characters, two dots), rolled out via the `X-GitHub-Stateless-S2S-Token` override header per GitHub's 2026-05-15 changelog. Removed the unused `MIN_TOKEN_LENGTH` constant, which was dead code left over from before validation became prefix-only, and added a regression test pinning acceptance of a token at the new length and dot count.
 
 ### Removed
 

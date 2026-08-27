@@ -41,15 +41,19 @@ export const VALIDATION_RULES = {
   MAX_RUNS_TO_KEEP: 10000,
   /** Maximum value for runs_older_than parameter (days) */
   MAX_DAYS_OLD: 3650,
-  /** GitHub token minimum length after prefix */
-  MIN_TOKEN_LENGTH: 40,
   /** Regex for validating GitHub username/org format */
   GITHUB_NAME_REGEX: /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
   /** Regex for validating workflow name format (allows spaces, dots, dashes, underscores, alphanumeric) */
   WORKFLOW_NAME_REGEX: /^[a-zA-Z0-9 ._-]+$/,
   /** Regex for validating repository name */
   REPO_NAME_REGEX: /^[a-zA-Z0-9._-]+$/,
-  /** Regex for validating GitHub token format — only prefix checked per GitHub's 2026-04-24 guidance */
+  /**
+   * Regex for validating GitHub token format. Only the prefix is checked, per
+   * GitHub's 2026-04-24 guidance: the body is opaque and may be up to ~520
+   * characters (stateless ghs_ JWT format, see the 2026-05-15 changelog on the
+   * X-GitHub-Stateless-S2S-Token override header). Do not add a length or body
+   * character-class check here.
+   */
   TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)/,
 } as const;
 
