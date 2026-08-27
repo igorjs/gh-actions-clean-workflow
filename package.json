@@ -1,6 +1,6 @@
 {
   "name": "@igorjs/gh-actions-clean-workflow",
-  "version": "7.0.1",
+  "version": "8.0.0",
   "description": "Github Action to delete old workflow runs",
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916",
   "engines": {
@@ -16,11 +16,12 @@
     "format:fix": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node26 --format=esm --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify --platform=node --target=node24 --format=esm --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "all": "pnpm run check && pnpm run test && pnpm run build"
+    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "keywords": [
     "GitHub",
@@ -34,13 +35,13 @@
     "@actions/github": "^9.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@octokit/types": "^16.0.0",
-    "@types/node": "^26.1.2",
-    "vitest": "^4.1.10",
-    "esbuild": "^0.28.1",
-    "globals": "^17.8.0",
+    "@biomejs/biome": "^2.5.10",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@octokit/types": "^17.0.0",
+    "@types/node": "^26.4.0",
+    "vitest": "^4.1.11",
+    "esbuild": "^0.28.2",
+    "globals": "^17.11.0",
     "typescript": "^7.0.2"
   }
 }
