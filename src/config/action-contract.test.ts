@@ -14,15 +14,19 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
  * more direct contract check and avoids adding a YAML parser dependency.
  */
 function extractManifestKeys(yaml: string, blockName: string): string[] {
-  const blockStart = new RegExp(`^${blockName}:$`, "m");
-  const startMatch = blockStart.exec(yaml);
-  if (!startMatch) throw new Error(`action.yml has no "${blockName}:" block`);
+  const lines = yaml.split("\n");
+  const blockHeader = `${blockName}:`;
+  const startIndex = lines.indexOf(blockHeader);
+  if (startIndex === -1)
+    throw new Error(`action.yml has no "${blockName}:" block`);
 
-  const rest = yaml.slice(startMatch.index + startMatch[0].length);
-  const nextTopLevelKey = /^\S/m.exec(rest);
-  const block = nextTopLevelKey ? rest.slice(0, nextTopLevelKey.index) : rest;
-
-  return [...block.matchAll(/^ {2}([a-zA-Z0-9_-]+):/gm)].map((m) => m[1]);
+  const keys: string[] = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (line.length > 0 && !line.startsWith(" ")) break; // next top-level key
+    const match = /^ {2}([a-zA-Z0-9_-]+):/.exec(line);
+    if (match) keys.push(match[1]);
+  }
+  return keys;
 }
 
 describe("action.yml contract", () => {
