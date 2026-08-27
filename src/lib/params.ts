@@ -8,13 +8,14 @@ import {
 import type { Params, ParamsDeps } from "../config/types";
 
 export function makeParams(deps: ParamsDeps): Params {
-  const { getInput } = deps;
+  const { getInput, setSecret } = deps;
 
   function getToken(): string {
     const value = getInput("token", { required: false, trimWhitespace: true });
     if (!value) throw new Error(ERROR_MESSAGES.INVALID_TOKEN);
     if (!VALIDATION_RULES.TOKEN_FORMAT_REGEX.test(value))
       throw new Error(ERROR_MESSAGES.INVALID_TOKEN_FORMAT);
+    setSecret(value);
     return value;
   }
 
@@ -34,8 +35,8 @@ export function makeParams(deps: ParamsDeps): Params {
     const currentRepository = env.GITHUB_REPOSITORY?.slice(
       env.GITHUB_REPOSITORY.indexOf("/") + 1
     );
-    const parameterRepository = /\\/i.test(value)
-      ? value.slice(value.indexOf("\\") + 1)
+    const parameterRepository = value
+      ? value.slice(value.lastIndexOf("/") + 1)
       : undefined;
     const repo = parameterRepository || currentRepository;
     if (!repo) throw new Error(ERROR_MESSAGES.INVALID_REPO);

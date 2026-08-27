@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: MIT
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { getInput, setFailed, setOutput } from "@actions/core";
+import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
-import type { ApiMetrics, RunEnv } from "./config/types";
+import type { Api, ApiMetrics, RunEnv } from "./config/types";
 import { makeApi } from "./lib/api";
 import * as logger from "./lib/logger";
 import { makeParams } from "./lib/params";
+
+const ZERO_METRICS: ApiMetrics = {
+  totalRequests: 0,
+  successfulRequests: 0,
+  failedRequests: 0,
+  retries: 0,
+  rateLimitHits: 0,
+  circuitBreakerTrips: 0,
+};
 
 function exportMetrics(
   totalRuns: number,
@@ -47,7 +56,7 @@ function logWorkflowStats(
 
 function makeDefaultEnv(): RunEnv {
   return {
-    params: makeParams({ getInput }),
+    params: makeParams({ getInput, setSecret }),
     getApi: makeApi({ getOctokit, sleep: nodeSetTimeout, now: Date.now }),
     setFailed,
     setOutput,
@@ -56,6 +65,7 @@ function makeDefaultEnv(): RunEnv {
 
 export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
   const { params, getApi, setFailed: fail, setOutput: setOut } = env;
+  let api: Api | undefined;
   try {
     const token = params.getToken();
     const owner = params.getOwner();
@@ -69,7 +79,7 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
     if (workflowNames.length > 0)
       logger.info(`Filtering by workflows: ${workflowNames.join(", ")}`);
 
-    const api = getApi({ token, owner, repo, dryRun, workflowNames });
+    api = getApi({ token, owner, repo, dryRun, workflowNames });
 
     logger.info(`Fetching workflow runs for ${owner}/${repo}...`);
     const { runIds, totalRuns, workflowStats } = await api.getRunsToDelete(
@@ -111,8 +121,9 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
       );
     }
   } catch (err) {
-    console.error(err);
-    fail((err as Error).message);
+    logger.error(err instanceof Error ? err.message : String(err));
+    exportMetrics(0, 0, 0, api?.getMetrics() ?? ZERO_METRICS, setOut);
+    fail(err instanceof Error ? err.message : String(err));
   }
 }
 

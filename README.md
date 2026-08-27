@@ -31,6 +31,7 @@ Need a full workflow file you can drop in? See [Examples](#examples) below.
 - [Advanced behavior](#advanced-behavior)
 - [Versioning](#versioning)
 - [Development](#development)
+- [Migrating from v7](#migrating-from-v7)
 - [Migrating from v6](#migrating-from-v6)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -263,7 +264,7 @@ Prevents the action from hammering an unhealthy API.
 
 - Comma-separated names (`workflow_names: "CI, Deploy"`)
 - **Case-sensitive** match against the workflow's `name:` field
-- Permitted characters: alphanumeric, spaces, dashes, underscores
+- Permitted characters: alphanumeric, spaces, dots, dashes, underscores
 
 ## Versioning
 
@@ -307,6 +308,30 @@ pnpm run all           # check + test + build
 ### Testing
 
 Tests run on Vitest with v8 coverage. Coverage thresholds are enforced by `vitest.config.ts` (lines/functions/statements >= 90%, branches >= 85%); the CI build fails if coverage drops below them. Live coverage is published as a Shields endpoint badge (see top of this README) from the [`Coverage Badge`](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/coverage-badge.yml) workflow.
+
+## Migrating from v7
+
+**Breaking**
+
+- `days_old` has been removed. It was deprecated since v4, and in v7.0.1 it was silently ignored: the action always used `runs_older_than` regardless of what `days_old` was set to. GitHub Actions now warns on the undeclared input instead of accepting it silently.
+- `result` output has been removed. It was never written since v7.0.1; the metrics output has always been `runs-deleted`.
+
+**Upgrade**
+
+```diff
+- uses: igorjs/gh-actions-clean-workflow@v7
++ uses: igorjs/gh-actions-clean-workflow@v8
+  with:
+-   days_old: 30
++   runs_older_than: 30
+
+- name: Summarize
+  run: |
+-   echo "Deleted: ${{ steps.clean.outputs.result }}"
++   echo "Deleted: ${{ steps.clean.outputs.runs-deleted }}"
+```
+
+If your workflow already used `runs_older_than`, no change is needed beyond replacing `result` with `runs-deleted` and bumping the version tag.
 
 ## Migrating from v6
 

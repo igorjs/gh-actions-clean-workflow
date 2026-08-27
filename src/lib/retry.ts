@@ -13,10 +13,16 @@ interface HttpError extends Error {
 }
 
 function isRateLimitError(error: HttpError): boolean {
+  if (error.status === HTTP_STATUS.TOO_MANY_REQUESTS) return true;
+  if (error.message?.includes("rate limit")) return true;
+  // A 403 is only treated as a rate limit when it carries a Retry-After
+  // header, GitHub's signal for a secondary rate limit. A bare 403 with
+  // no such header is a permissions error and should fail fast instead
+  // of being retried for up to four minutes (see handleRateLimitError's
+  // default wait).
   return (
-    error.status === HTTP_STATUS.TOO_MANY_REQUESTS ||
-    error.status === HTTP_STATUS.FORBIDDEN ||
-    error.message?.includes("rate limit")
+    error.status === HTTP_STATUS.FORBIDDEN &&
+    !!error.response?.headers?.["retry-after"]
   );
 }
 
@@ -85,12 +91,19 @@ export function makeRetry(deps: RetryDeps) {
 
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
+          if (attempt === API_CONFIG.MAX_RETRIES) {
+            metrics.failedRequests++;
+            circuitBreaker.recordFailure();
+          }
           continue;
         }
 
         if (isClientError(lastError)) {
           metrics.failedRequests++;
           circuitBreaker.recordFailure();
+          if (lastError.status === HTTP_STATUS.FORBIDDEN) {
+            lastError.message = `${lastError.message} (if this is a permissions error, ensure the token has 'actions: write' scope on the target repository)`;
+          }
           throw lastError;
         }
 
