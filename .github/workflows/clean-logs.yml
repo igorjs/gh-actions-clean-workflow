@@ -20,20 +20,24 @@ on:
         type: boolean
         default: true
         required: false
-      test_mode:
-        description: "Run all test scenarios"
-        type: boolean
-        default: false
-        required: false
+
+permissions: {}
 
 jobs:
   clean-logs:
     name: "Clean Logs (Manual)"
     runs-on: ubuntu-latest
-    if: github.event.inputs.test_mode != 'true'
     permissions:
       actions: write
     steps:
+      - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,7 +45,7 @@ jobs:
 
       - name: Clean workflow runs
         id: clean
-        uses: igorjs/gh-actions-clean-workflow@main
+        uses: igorjs/gh-actions-clean-workflow@5fa2e3a4fdd40e3e7098645a0b8df08624352e5e # v7
         with:
           runs_older_than: ${{ github.event.inputs.runs_older_than || '7' }}
           runs_to_keep: ${{ github.event.inputs.runs_to_keep || '5' }}
@@ -49,22 +53,34 @@ jobs:
           dry_run: ${{ github.event.inputs.dry_run == 'true' }}
 
       - name: Display cleanup results
+        env:
+          TOTAL_RUNS_FOUND: ${{ steps.clean.outputs.total-runs-found }}
+          RUNS_DELETED: ${{ steps.clean.outputs.runs-deleted }}
+          RUNS_FAILED: ${{ steps.clean.outputs.runs-failed }}
+          TOTAL_API_REQUESTS: ${{ steps.clean.outputs.total-api-requests }}
+          SUCCESSFUL_REQUESTS: ${{ steps.clean.outputs.successful-requests }}
+          FAILED_REQUESTS: ${{ steps.clean.outputs.failed-requests }}
+          RETRY_ATTEMPTS: ${{ steps.clean.outputs.retry-attempts }}
+          RATE_LIMIT_HITS: ${{ steps.clean.outputs.rate-limit-hits }}
+          CIRCUIT_BREAKER_TRIPS: ${{ steps.clean.outputs.circuit-breaker-trips }}
         run: |
           echo "=== Cleanup Results ==="
-          echo "Total runs found: ${{ steps.clean.outputs.total-runs-found }}"
-          echo "Runs deleted: ${{ steps.clean.outputs.runs-deleted }}"
-          echo "Runs failed: ${{ steps.clean.outputs.runs-failed }}"
+          echo "Total runs found: $TOTAL_RUNS_FOUND"
+          echo "Runs deleted: $RUNS_DELETED"
+          echo "Runs failed: $RUNS_FAILED"
           echo ""
           echo "=== API Metrics ==="
-          echo "Total API requests: ${{ steps.clean.outputs.total-api-requests }}"
-          echo "Successful requests: ${{ steps.clean.outputs.successful-requests }}"
-          echo "Failed requests: ${{ steps.clean.outputs.failed-requests }}"
-          echo "Retry attempts: ${{ steps.clean.outputs.retry-attempts }}"
-          echo "Rate limit hits: ${{ steps.clean.outputs.rate-limit-hits }}"
-          echo "Circuit breaker trips: ${{ steps.clean.outputs.circuit-breaker-trips }}"
+          echo "Total API requests: $TOTAL_API_REQUESTS"
+          echo "Successful requests: $SUCCESSFUL_REQUESTS"
+          echo "Failed requests: $FAILED_REQUESTS"
+          echo "Retry attempts: $RETRY_ATTEMPTS"
+          echo "Rate limit hits: $RATE_LIMIT_HITS"
+          echo "Circuit breaker trips: $CIRCUIT_BREAKER_TRIPS"
 
       - name: Check for failures
         if: steps.clean.outputs.runs-failed != '0'
+        env:
+          RUNS_FAILED: ${{ steps.clean.outputs.runs-failed }}
         run: |
-          echo "Warning: ${{ steps.clean.outputs.runs-failed }} runs failed to delete"
+          echo "Warning: $RUNS_FAILED runs failed to delete"
           echo "Check the logs above for details"
