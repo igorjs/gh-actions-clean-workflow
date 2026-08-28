@@ -8,6 +8,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { API_CONFIG } from "../config/constants";
 import { makeApi } from "./api";
 import { makeHttpError, makeWorkflowRuns } from "./api.test-helpers";
 
@@ -173,10 +174,19 @@ describe("api", () => {
     });
 
     it.each([
-      { n: 20, label: "exactly one full batch" },
-      { n: 21, label: "one full batch plus a short-circuited trailing run" },
-      { n: 40, label: "two full batches, the second fully short-circuited" },
-      { n: 41, label: "two full batches plus a short-circuited trailing run" },
+      { n: API_CONFIG.BATCH_SIZE, label: "exactly one full batch" },
+      {
+        n: API_CONFIG.BATCH_SIZE + 1,
+        label: "one full batch plus a short-circuited trailing run",
+      },
+      {
+        n: API_CONFIG.BATCH_SIZE * 2,
+        label: "two full batches, the second fully short-circuited",
+      },
+      {
+        n: API_CONFIG.BATCH_SIZE * 2 + 1,
+        label: "two full batches plus a short-circuited trailing run",
+      },
     ])(
       "should fail all $n runs with the breaker tripping exactly once ($label)",
       async ({ n }) => {
@@ -380,6 +390,13 @@ describe("api", () => {
           0
         );
         expect(result.totalRuns).toBe(count);
+        // keepCount is 0, so every generated run must appear exactly once.
+        // A length-only check on totalRuns would still pass if a page
+        // boundary bug dropped one run and double-counted another instead;
+        // asserting the id set is duplicate-free is what actually catches
+        // that.
+        expect(result.runIds).toHaveLength(count);
+        expect(new Set(result.runIds).size).toBe(count);
       }
     );
 
