@@ -103,8 +103,6 @@ export const DEFAULTS = {
   RUNS_OLDER_THAN: 7,
   /** Default value for dry_run */
   DRY_RUN: false,
-  /** Default value for workflow_names (empty means all workflows) */
-  WORKFLOW_NAMES: "",
 } as const;
 
 // HTTP Status Codes
