@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8] - 2026-08-29
+
 ### Fixed
 
 - A 403 response is no longer always treated as a rate limit. Only a 403 carrying a `Retry-After` header (GitHub's secondary rate limit signal) is retried; a bare 403 (typically a missing `actions: write` scope) now fails fast with an actionable message instead of retrying for up to four minutes.
@@ -251,6 +253,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upgrading
 
+### From v7 to v8
+
+**Breaking Changes:**
+- The deprecated `days_old` input has been removed. It was already silently ignored since v7.0.1. Use `runs_older_than` instead.
+- The deprecated `result` output has been removed. It was never written since v7.0.1. Use `runs-deleted` instead.
+
+```yaml
+# Before (v7)
+- uses: igorjs/gh-actions-clean-workflow@v7
+  with:
+    days_old: 30
+
+- name: Summarize
+  run: |
+    echo "Deleted: ${{ steps.clean.outputs.result }}"
+
+# After (v8)
+- uses: igorjs/gh-actions-clean-workflow@v8
+  with:
+    runs_older_than: 30
+
+- name: Summarize
+  run: |
+    echo "Deleted: ${{ steps.clean.outputs.runs-deleted }}"
+```
+
+If your workflow already used `runs_older_than`, no change is needed beyond replacing `result` with `runs-deleted` and bumping the version tag.
+
 ### From v6 to v7
 
 **Breaking Changes:**
@@ -311,6 +341,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript rewrite - no user-facing changes
 - Better error messages and type safety
 
+[8]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v7.0.1...v8
 [7]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v6...v7
 [6]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v5...v6
 [5]: https://github.com/igorjs/gh-actions-clean-workflow/compare/v4...v5
