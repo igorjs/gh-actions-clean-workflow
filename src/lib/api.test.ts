@@ -172,82 +172,33 @@ describe("api", () => {
       expect(api.getMetrics().circuitBreakerTrips).toBe(1);
     });
 
-    it("should fail all 20 runs in a single full batch and trip the breaker exactly once (N=20)", async () => {
-      // Boundary: exactly one batch (BATCH_SIZE=20). All 20 calls in this
-      // batch are dispatched synchronously via Promise.allSettled before any
-      // of them settles, so circuitBreaker.canExecute() is still true for
-      // every one of them even though FAILURE_THRESHOLD (5) trips the
-      // breaker to OPEN partway through this same batch's results. There is
-      // no second batch, so nothing gets short-circuited.
-      const deps = makeTestDeps();
-      deps.mockDeleteWorkflowRun.mockRejectedValue(
-        makeHttpError("bad request", { status: 400 })
-      );
-      const api = makeApi(deps)(BASE_PARAMS);
-      const runIds = Array.from({ length: 20 }, (_, i) => i + 1);
-      const result = await api.deleteRuns(runIds);
+    it.each([
+      { n: 20, label: "exactly one full batch" },
+      { n: 21, label: "one full batch plus a short-circuited trailing run" },
+      { n: 40, label: "two full batches, the second fully short-circuited" },
+      { n: 41, label: "two full batches plus a short-circuited trailing run" },
+    ])(
+      "should fail all $n runs with the breaker tripping exactly once ($label)",
+      async ({ n }) => {
+        // Boundary: BATCH_SIZE=20, FAILURE_THRESHOLD=5. All calls already
+        // dispatched in a batch (via Promise.allSettled) complete even after
+        // the breaker trips mid-batch; only a SUBSEQUENT batch gets
+        // short-circuited. The breaker only trips once, on its first
+        // CLOSED->OPEN transition; deleteRuns stops issuing new batches once
+        // it observes OPEN, so it never gets a chance to re-trip.
+        const deps = makeTestDeps();
+        deps.mockDeleteWorkflowRun.mockRejectedValue(
+          makeHttpError("bad request", { status: 400 })
+        );
+        const api = makeApi(deps)(BASE_PARAMS);
+        const runIds = Array.from({ length: n }, (_, i) => i + 1);
+        const result = await api.deleteRuns(runIds);
 
-      expect(result.succeeded).toBe(0);
-      expect(result.failed).toBe(20);
-      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
-    });
-
-    it("should short-circuit the trailing 1 run after batch one trips the breaker (N=21)", async () => {
-      // Boundary: 1 full batch of 20 (breaker trips to OPEN after its 5th
-      // failure, but all 20 already-dispatched calls still complete as
-      // failures) + a second batch of 1 that deleteRuns short-circuits as
-      // failed once it observes OPEN after batch one, never calling
-      // deleteWorkflowRun for it.
-      const deps = makeTestDeps();
-      deps.mockDeleteWorkflowRun.mockRejectedValue(
-        makeHttpError("bad request", { status: 400 })
-      );
-      const api = makeApi(deps)(BASE_PARAMS);
-      const runIds = Array.from({ length: 21 }, (_, i) => i + 1);
-      const result = await api.deleteRuns(runIds);
-
-      expect(result.succeeded).toBe(0);
-      expect(result.failed).toBe(21);
-      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
-    });
-
-    it("should fully short-circuit batch two after batch one trips the breaker (N=40)", async () => {
-      // Boundary: 2 full batches of 20. Batch one trips the breaker to OPEN
-      // (same mechanics as N=20/21); batch two is never dispatched at all,
-      // its 20 runs counted as failed via the short-circuit at
-      // api.ts:88-92. Only one CLOSED-to-OPEN transition occurs, so trips
-      // stays 1.
-      const deps = makeTestDeps();
-      deps.mockDeleteWorkflowRun.mockRejectedValue(
-        makeHttpError("bad request", { status: 400 })
-      );
-      const api = makeApi(deps)(BASE_PARAMS);
-      const runIds = Array.from({ length: 40 }, (_, i) => i + 1);
-      const result = await api.deleteRuns(runIds);
-
-      expect(result.succeeded).toBe(0);
-      expect(result.failed).toBe(40);
-      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
-    });
-
-    it("should short-circuit the trailing 1 run after two full batches (N=41)", async () => {
-      // Boundary: 2 full batches of 20 (same as N=40) + a third batch of 1
-      // that's short-circuited as failed, never dispatched. The breaker
-      // only trips once, on its first CLOSED-to-OPEN transition in batch
-      // one; it stays OPEN and deleteRuns stops issuing new batches once it
-      // observes that, so later runs never get a chance to re-trip it.
-      const deps = makeTestDeps();
-      deps.mockDeleteWorkflowRun.mockRejectedValue(
-        makeHttpError("bad request", { status: 400 })
-      );
-      const api = makeApi(deps)(BASE_PARAMS);
-      const runIds = Array.from({ length: 41 }, (_, i) => i + 1);
-      const result = await api.deleteRuns(runIds);
-
-      expect(result.succeeded).toBe(0);
-      expect(result.failed).toBe(41);
-      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
-    });
+        expect(result.succeeded).toBe(0);
+        expect(result.failed).toBe(n);
+        expect(api.getMetrics().circuitBreakerTrips).toBe(1);
+      }
+    );
   });
 
   describe("getRunsToDelete", () => {
@@ -405,82 +356,32 @@ describe("api", () => {
       }
     });
 
-    it("should accumulate exactly 100 runs across a single full page", async () => {
-      // Pins getWorkflowRuns' for-await accumulation (api.ts:119-140) at a
-      // realistic per_page: 100 page boundary: exactly one full page.
-      const deps = makeTestDeps();
-      const count = 100;
-      const runs = makeWorkflowRuns({ count });
-      const pages = chunkRuns(runs, 100);
-      deps.mockPaginateIterator.mockImplementation(async function* () {
-        for (const page of pages) {
-          yield { data: page };
-        }
-      });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
-        undefined,
-        0
-      );
-      expect(result.totalRuns).toBe(count);
-    });
-
-    it("should accumulate exactly 101 runs across a full page plus 1", async () => {
-      // Pins getWorkflowRuns' for-await accumulation at a full page (100)
-      // plus a second page holding a single run, no off-by-one dropped or
-      // double-counted across the yield boundary.
-      const deps = makeTestDeps();
-      const count = 101;
-      const runs = makeWorkflowRuns({ count });
-      const pages = chunkRuns(runs, 100);
-      deps.mockPaginateIterator.mockImplementation(async function* () {
-        for (const page of pages) {
-          yield { data: page };
-        }
-      });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
-        undefined,
-        0
-      );
-      expect(result.totalRuns).toBe(count);
-    });
-
-    it("should accumulate exactly 199 runs across a full page plus a near-full page", async () => {
-      // Pins getWorkflowRuns' for-await accumulation across a full page
-      // (100) followed by a 99-item page.
-      const deps = makeTestDeps();
-      const count = 199;
-      const runs = makeWorkflowRuns({ count });
-      const pages = chunkRuns(runs, 100);
-      deps.mockPaginateIterator.mockImplementation(async function* () {
-        for (const page of pages) {
-          yield { data: page };
-        }
-      });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
-        undefined,
-        0
-      );
-      expect(result.totalRuns).toBe(count);
-    });
-
-    it("should accumulate exactly 200 runs across two full pages", async () => {
-      // Pins getWorkflowRuns' for-await accumulation across exactly two
-      // full 100-item pages.
-      const deps = makeTestDeps();
-      const count = 200;
-      const runs = makeWorkflowRuns({ count });
-      const pages = chunkRuns(runs, 100);
-      deps.mockPaginateIterator.mockImplementation(async function* () {
-        for (const page of pages) {
-          yield { data: page };
-        }
-      });
-      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
-        undefined,
-        0
-      );
-      expect(result.totalRuns).toBe(count);
-    });
+    it.each([
+      { count: 100, label: "a single full page" },
+      { count: 101, label: "a full page plus 1" },
+      { count: 199, label: "a full page plus a near-full page" },
+      { count: 200, label: "two full pages" },
+    ])(
+      "should accumulate exactly $count runs across $label",
+      async ({ count }) => {
+        // Pins getWorkflowRuns' for-await accumulation (api.ts:119-140)
+        // across realistic per_page: 100 page boundaries, no off-by-one
+        // dropped or double-counted across a yield boundary.
+        const deps = makeTestDeps();
+        const runs = makeWorkflowRuns({ count });
+        const pages = chunkRuns(runs, 100);
+        deps.mockPaginateIterator.mockImplementation(async function* () {
+          for (const page of pages) {
+            yield { data: page };
+          }
+        });
+        const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+          undefined,
+          0
+        );
+        expect(result.totalRuns).toBe(count);
+      }
+    );
 
     it("should apply date filter when provided", async () => {
       const deps = makeTestDeps();
