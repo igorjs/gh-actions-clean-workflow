@@ -46,6 +46,14 @@ function isClientError(error: HttpError): boolean {
   );
 }
 
+function recordFailure(
+  metrics: ApiMetrics,
+  circuitBreaker: CircuitBreakerHandle
+): void {
+  metrics.failedRequests++;
+  circuitBreaker.recordFailure();
+}
+
 export function makeRetry(deps: RetryDeps) {
   const { sleep } = deps;
 
@@ -104,15 +112,13 @@ export function makeRetry(deps: RetryDeps) {
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
           if (attempt === API_CONFIG.MAX_RETRIES) {
-            metrics.failedRequests++;
-            circuitBreaker.recordFailure();
+            recordFailure(metrics, circuitBreaker);
           }
           continue;
         }
 
         if (isClientError(lastError)) {
-          metrics.failedRequests++;
-          circuitBreaker.recordFailure();
+          recordFailure(metrics, circuitBreaker);
           if (lastError.status === HTTP_STATUS.FORBIDDEN) {
             lastError.message = `${lastError.message} (if this is a permissions error, ensure the token has 'actions: write' scope on the target repository)`;
           }
@@ -127,8 +133,7 @@ export function makeRetry(deps: RetryDeps) {
             metrics
           );
         } else {
-          metrics.failedRequests++;
-          circuitBreaker.recordFailure();
+          recordFailure(metrics, circuitBreaker);
         }
       }
     }
