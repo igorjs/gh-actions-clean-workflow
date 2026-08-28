@@ -78,10 +78,11 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
           batch.map((id) => deleteRunById(id))
         );
 
-        for (const result of results) {
-          if (result.status === "fulfilled") succeeded++;
-          else failed++;
-        }
+        const batchSucceeded = results.filter(
+          (result) => result.status === "fulfilled"
+        ).length;
+        succeeded += batchSucceeded;
+        failed += results.length - batchSucceeded;
 
         if (circuitBreaker.getState() === CircuitState.OPEN) {
           logger.warn("Circuit breaker OPEN - stopping further deletions");
@@ -151,32 +152,29 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
         return { runIds: [], totalRuns: 0, workflowStats: new Map() };
       }
 
-      const runsByWorkflow = new Map<number, WorkflowRun[]>();
-      for (const run of runs) {
-        if (!runsByWorkflow.has(run.workflow_id))
-          runsByWorkflow.set(run.workflow_id, []);
-        runsByWorkflow.get(run.workflow_id)?.push(run);
-      }
-
-      const runIds: number[] = [];
-      const workflowStats = new Map<
-        number,
-        { total: number; toDelete: number }
-      >();
+      const runsByWorkflow = Map.groupBy(runs, (run) => run.workflow_id);
       const keepCount = Math.max(0, runsToKeep || 0);
 
-      for (const [workflowId, workflowRuns] of runsByWorkflow) {
-        workflowRuns.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        const runsToDelete = workflowRuns.slice(keepCount);
-        workflowStats.set(workflowId, {
-          total: workflowRuns.length,
-          toDelete: runsToDelete.length,
-        });
-        for (const run of runsToDelete) runIds.push(run.id);
-      }
+      const workflowEntries = [...runsByWorkflow].map(
+        ([workflowId, workflowRuns]) => {
+          const sorted = [...workflowRuns].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+          return { workflowId, sorted, toDelete: sorted.slice(keepCount) };
+        }
+      );
+
+      const workflowStats = new Map(
+        workflowEntries.map(({ workflowId, sorted, toDelete }) => [
+          workflowId,
+          { total: sorted.length, toDelete: toDelete.length },
+        ])
+      );
+      const runIds = workflowEntries.flatMap(({ toDelete }) =>
+        toDelete.map((run) => run.id)
+      );
 
       return { runIds, totalRuns, workflowStats };
     }

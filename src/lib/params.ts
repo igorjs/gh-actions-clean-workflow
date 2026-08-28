@@ -102,9 +102,10 @@ export function makeParams(deps: ParamsDeps): Params {
       .split(",")
       .map((name) => name.trim())
       .filter((name) => name.length > 0);
-    for (const name of names) {
-      if (!VALIDATION_RULES.WORKFLOW_NAME_REGEX.test(name))
-        throw new Error(ERROR_MESSAGES.INVALID_WORKFLOW_NAMES_FORMAT);
+    if (
+      names.some((name) => !VALIDATION_RULES.WORKFLOW_NAME_REGEX.test(name))
+    ) {
+      throw new Error(ERROR_MESSAGES.INVALID_WORKFLOW_NAMES_FORMAT);
     }
     return names;
   }
