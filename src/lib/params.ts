@@ -26,14 +26,15 @@ export function makeParams(deps: ParamsDeps): Params {
         throw new Error(ERROR_MESSAGES.INVALID_OWNER_FORMAT);
       return value;
     }
-    if (env.GITHUB_REPOSITORY_OWNER) return env.GITHUB_REPOSITORY_OWNER;
+    if (env["GITHUB_REPOSITORY_OWNER"])
+      return env["GITHUB_REPOSITORY_OWNER"];
     throw new Error(ERROR_MESSAGES.INVALID_OWNER);
   }
 
   function getRepo(): string {
     const value = getInput("repo", { required: false, trimWhitespace: true });
-    const currentRepository = env.GITHUB_REPOSITORY?.slice(
-      env.GITHUB_REPOSITORY.indexOf("/") + 1
+    const currentRepository = env["GITHUB_REPOSITORY"]?.slice(
+      env["GITHUB_REPOSITORY"].indexOf("/") + 1
     );
     const parameterRepository = value
       ? value.slice(value.lastIndexOf("/") + 1)

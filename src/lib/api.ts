@@ -158,7 +158,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
 
       const workflowEntries = [...runsByWorkflow].map(
         ([workflowId, workflowRuns]) => {
-          const sorted = [...workflowRuns].sort(
+          const sorted = workflowRuns.toSorted(
             (a, b) =>
               new Date(b.created_at).getTime() -
               new Date(a.created_at).getTime()
