@@ -62,7 +62,8 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
         );
         logger.success(`Run #${id} was deleted`);
       } catch (err) {
-        const errorMessage = (err as Error).message || "Unknown error";
+        const errorMessage =
+          err instanceof Error ? err.message : "Unknown error";
         logger.error(`Failed to delete run #${id}: ${errorMessage}`);
         throw err;
       }
