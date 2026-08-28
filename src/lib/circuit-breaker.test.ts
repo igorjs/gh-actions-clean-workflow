@@ -8,7 +8,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { CircuitState } from "../config/constants";
+import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../config/constants";
 import { createCircuitBreaker } from "./circuit-breaker";
 
 function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
@@ -184,6 +184,39 @@ describe("CircuitBreaker", () => {
       cb.recordSuccess();
       expect(cb.getState()).toBe(CircuitState.CLOSED);
       expect(cb.getTripCount()).toBe(1);
+    });
+
+    it("should stay at trip count 1 across 100 sustained failures while OPEN", () => {
+      // Pins: tripCount increments only on a genuine CLOSED -> OPEN or
+      // HALF_OPEN -> OPEN transition, never while already OPEN, holding
+      // at scale (100 failures) and not just for a couple of extra calls.
+      const cb = createCircuitBreaker();
+      for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) cb.recordFailure();
+      for (let i = 0; i < 100; i++) cb.recordFailure();
+      expect(cb.getState()).toBe(CircuitState.OPEN);
+      expect(cb.getTripCount()).toBe(1);
+    });
+
+    it("should track cumulative trip count exactly across 3 full trip/recover cycles", () => {
+      // Pins: tripCount accumulates correctly across a sustained sequence of
+      // FAILURE_THRESHOLD trip -> TIMEOUT_MS recovery -> SUCCESS_THRESHOLD
+      // cycles, not just the single-cycle case the other tests already cover.
+      vi.useFakeTimers();
+      const cb = createCircuitBreaker();
+
+      for (let cycle = 1; cycle <= 3; cycle++) {
+        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) cb.recordFailure();
+        expect(cb.getState()).toBe(CircuitState.OPEN);
+        expect(cb.getTripCount()).toBe(cycle);
+
+        vi.advanceTimersByTime(CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS);
+        cb.canExecute(); // triggers HALF_OPEN transition
+        expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
+
+        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++) cb.recordSuccess();
+        expect(cb.getState()).toBe(CircuitState.CLOSED);
+        expect(cb.getTripCount()).toBe(cycle); // recovery never increments trip count
+      }
     });
   });
 
