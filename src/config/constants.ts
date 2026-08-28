@@ -114,8 +114,9 @@ export const HTTP_STATUS = {
 } as const;
 
 // Circuit Breaker States
-export enum CircuitState {
-  CLOSED = "CLOSED",
-  OPEN = "OPEN",
-  HALF_OPEN = "HALF_OPEN",
-}
+export const CircuitState = {
+  CLOSED: "CLOSED",
+  OPEN: "OPEN",
+  HALF_OPEN: "HALF_OPEN",
+} as const;
+export type CircuitState = (typeof CircuitState)[keyof typeof CircuitState];

@@ -4,7 +4,7 @@ import type { CircuitBreakerHandle } from "../config/types";
 import * as logger from "./logger";
 
 export function createCircuitBreaker(): CircuitBreakerHandle {
-  let state = CircuitState.CLOSED;
+  let state: CircuitState = CircuitState.CLOSED;
   let failureCount = 0;
   let successCount = 0;
   let lastFailureTime: number | null = null;
