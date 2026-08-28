@@ -13,7 +13,7 @@
 ## Quick start
 
 ```yaml
-- uses: igorjs/gh-actions-clean-workflow@v7
+- uses: igorjs/gh-actions-clean-workflow@v8
   with:
     runs_older_than: 7  # delete runs older than 7 days
     runs_to_keep: 5     # keep the 5 most recent runs per workflow
@@ -106,7 +106,7 @@ jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
+      - uses: igorjs/gh-actions-clean-workflow@v8
         with:
           runs_older_than: 14
           runs_to_keep: 20
@@ -117,7 +117,7 @@ jobs:
 Only clean CI / Deploy noise, leave other workflows untouched.
 
 ```yaml
-- uses: igorjs/gh-actions-clean-workflow@v7
+- uses: igorjs/gh-actions-clean-workflow@v8
   with:
     workflow_names: "CI, Deploy, Tests"
     runs_older_than: 14
@@ -129,7 +129,7 @@ Only clean CI / Deploy noise, leave other workflows untouched.
 Preview what would be deleted without calling the delete API. Useful for the first cron run, or to sanity-check filters.
 
 ```yaml
-- uses: igorjs/gh-actions-clean-workflow@v7
+- uses: igorjs/gh-actions-clean-workflow@v8
   with:
     dry_run: true
     runs_older_than: 7
@@ -140,7 +140,7 @@ Preview what would be deleted without calling the delete API. Useful for the fir
 ```yaml
 - name: Clean workflow runs
   id: clean
-  uses: igorjs/gh-actions-clean-workflow@v7
+  uses: igorjs/gh-actions-clean-workflow@v8
   with:
     runs_older_than: 7
     runs_to_keep: 10
@@ -185,7 +185,7 @@ jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
+      - uses: igorjs/gh-actions-clean-workflow@v8
         with:
           runs_older_than: ${{ github.event.inputs.runs_older_than }}
           runs_to_keep: ${{ github.event.inputs.runs_to_keep }}
@@ -225,7 +225,7 @@ jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: igorjs/gh-actions-clean-workflow@v7
+      - uses: igorjs/gh-actions-clean-workflow@v8
         with:
           runs_older_than: ${{ github.event.inputs.runs_older_than || env.SCHEDULED_RUNS_OLDER_THAN }}
           runs_to_keep: ${{ github.event.inputs.runs_to_keep || env.SCHEDULED_RUNS_TO_KEEP }}
@@ -283,8 +283,8 @@ Pin one of the following based on how aggressively you want updates:
 
 | Tag style | Example | Behavior |
 |---|---|---|
-| Floating major (recommended) | `@v7` | Auto-updates to the latest `v7.x.y` patch/minor on each run. Breaking changes only on major bumps. |
-| Specific tag | `@v7.0.0` | Pinned; never moves. Update manually when you want a new version. |
+| Floating major (recommended) | `@v8` | Auto-updates to the latest `v8.x.y` patch/minor on each run. Breaking changes only on major bumps. |
+| Specific tag | `@v8.0.0` | Pinned; never moves. Update manually when you want a new version. |
 | Commit SHA | `@<sha>` | Strictest pin. Use when you need byte-for-byte reproducibility (Dependabot can still bump this). |
 | `@main` | `@main` | Not recommended for production; pulls whatever is on `main` at run time. |
 
