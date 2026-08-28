@@ -8,7 +8,9 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { API_CONFIG } from "../config/constants";
 import { makeApi } from "./api";
+import { makeHttpError, makeWorkflowRuns } from "./api.test-helpers";
 
 function makeTestDeps() {
   const mockDeleteWorkflowRun = vi
@@ -39,6 +41,19 @@ function makeTestDeps() {
     mockPaginateIterator,
     mockOctokit,
   };
+}
+
+/**
+ * Splits a flat list into fixed-size pages, mirroring how real paginated
+ * GitHub API responses (per_page: 100) arrive as multiple `response.data`
+ * yields from octokit.paginate.iterator.
+ */
+function chunkRuns<T>(items: T[], pageSize: number): T[][] {
+  const pages: T[][] = [];
+  for (let i = 0; i < items.length; i += pageSize) {
+    pages.push(items.slice(i, i + pageSize));
+  }
+  return pages;
 }
 
 const TEST_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDEF";
@@ -157,6 +172,43 @@ describe("api", () => {
       expect(result.failed).toBe(25);
       expect(api.getMetrics().circuitBreakerTrips).toBe(1);
     });
+
+    it.each([
+      { n: API_CONFIG.BATCH_SIZE, label: "exactly one full batch" },
+      {
+        n: API_CONFIG.BATCH_SIZE + 1,
+        label: "one full batch plus a short-circuited trailing run",
+      },
+      {
+        n: API_CONFIG.BATCH_SIZE * 2,
+        label: "two full batches, the second fully short-circuited",
+      },
+      {
+        n: API_CONFIG.BATCH_SIZE * 2 + 1,
+        label: "two full batches plus a short-circuited trailing run",
+      },
+    ])(
+      "should fail all $n runs with the breaker tripping exactly once ($label)",
+      async ({ n }) => {
+        // Boundary: BATCH_SIZE=20, FAILURE_THRESHOLD=5. All calls already
+        // dispatched in a batch (via Promise.allSettled) complete even after
+        // the breaker trips mid-batch; only a SUBSEQUENT batch gets
+        // short-circuited. The breaker only trips once, on its first
+        // CLOSED->OPEN transition; deleteRuns stops issuing new batches once
+        // it observes OPEN, so it never gets a chance to re-trip.
+        const deps = makeTestDeps();
+        deps.mockDeleteWorkflowRun.mockRejectedValue(
+          makeHttpError("bad request", { status: 400 })
+        );
+        const api = makeApi(deps)(BASE_PARAMS);
+        const runIds = Array.from({ length: n }, (_, i) => i + 1);
+        const result = await api.deleteRuns(runIds);
+
+        expect(result.succeeded).toBe(0);
+        expect(result.failed).toBe(n);
+        expect(api.getMetrics().circuitBreakerTrips).toBe(1);
+      }
+    );
   });
 
   describe("getRunsToDelete", () => {
@@ -224,6 +276,129 @@ describe("api", () => {
       expect(result.totalRuns).toBe(0);
       expect(result.workflowStats.size).toBe(0);
     });
+
+    it("should delete nothing when runs_to_keep equals totalRuns for a single workflow", async () => {
+      // Boundary: keepCount === totalRuns must retain every run
+      // (toDelete: 0), not off-by-one delete the oldest one.
+      const deps = makeTestDeps();
+      const count = 50;
+      const runs = makeWorkflowRuns({ count });
+      deps.mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: runs };
+      });
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        count
+      );
+
+      expect(result.runIds).toEqual([]);
+      expect(result.totalRuns).toBe(count);
+      expect(result.workflowStats.get(100)).toEqual({
+        total: count,
+        toDelete: 0,
+      });
+    });
+
+    it("should compute exact deletion counts across 1000 runs spread over 10 workflows", async () => {
+      // Stress-scale correctness: with round-robin distribution every
+      // workflow ends up with count/workflowIdCount runs, so
+      // runIds.length must equal count - workflowIdCount * keepCount
+      // exactly, and each workflow's stats must reflect its own
+      // total/toDelete, not an approximation.
+      const deps = makeTestDeps();
+      const count = 1000;
+      const workflowIdCount = 10;
+      const keepCount = 5;
+      const runs = makeWorkflowRuns({ count, workflowIdCount });
+      deps.mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: runs };
+      });
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        keepCount
+      );
+
+      expect(result.totalRuns).toBe(count);
+      expect(result.runIds).toHaveLength(count - workflowIdCount * keepCount);
+      expect(result.workflowStats.size).toBe(workflowIdCount);
+      const perWorkflowTotal = count / workflowIdCount;
+      for (
+        let workflowId = 100;
+        workflowId < 100 + workflowIdCount;
+        workflowId++
+      ) {
+        expect(result.workflowStats.get(workflowId)).toEqual({
+          total: perWorkflowTotal,
+          toDelete: perWorkflowTotal - keepCount,
+        });
+      }
+    });
+
+    it("should compute exact deletion counts across 10000 runs spread over 50 workflows", async () => {
+      // Same stress-scale correctness guard as the 1000/10 case, at a
+      // larger scale to catch anything that only breaks past a small N.
+      const deps = makeTestDeps();
+      const count = 10000;
+      const workflowIdCount = 50;
+      const keepCount = 5;
+      const runs = makeWorkflowRuns({ count, workflowIdCount });
+      deps.mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: runs };
+      });
+      const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        keepCount
+      );
+
+      expect(result.totalRuns).toBe(count);
+      expect(result.runIds).toHaveLength(count - workflowIdCount * keepCount);
+      expect(result.workflowStats.size).toBe(workflowIdCount);
+      const perWorkflowTotal = count / workflowIdCount;
+      for (
+        let workflowId = 100;
+        workflowId < 100 + workflowIdCount;
+        workflowId++
+      ) {
+        expect(result.workflowStats.get(workflowId)).toEqual({
+          total: perWorkflowTotal,
+          toDelete: perWorkflowTotal - keepCount,
+        });
+      }
+    });
+
+    it.each([
+      { count: 100, label: "a single full page" },
+      { count: 101, label: "a full page plus 1" },
+      { count: 199, label: "a full page plus a near-full page" },
+      { count: 200, label: "two full pages" },
+    ])(
+      "should accumulate exactly $count runs across $label",
+      async ({ count }) => {
+        // Pins getWorkflowRuns' for-await accumulation (api.ts:119-140)
+        // across realistic per_page: 100 page boundaries, no off-by-one
+        // dropped or double-counted across a yield boundary.
+        const deps = makeTestDeps();
+        const runs = makeWorkflowRuns({ count });
+        const pages = chunkRuns(runs, 100);
+        deps.mockPaginateIterator.mockImplementation(async function* () {
+          for (const page of pages) {
+            yield { data: page };
+          }
+        });
+        const result = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+          undefined,
+          0
+        );
+        expect(result.totalRuns).toBe(count);
+        // keepCount is 0, so every generated run must appear exactly once.
+        // A length-only check on totalRuns would still pass if a page
+        // boundary bug dropped one run and double-counted another instead;
+        // asserting the id set is duplicate-free is what actually catches
+        // that.
+        expect(result.runIds).toHaveLength(count);
+        expect(new Set(result.runIds).size).toBe(count);
+      }
+    );
 
     it("should apply date filter when provided", async () => {
       const deps = makeTestDeps();
