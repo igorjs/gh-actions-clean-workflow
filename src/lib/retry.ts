@@ -12,6 +12,18 @@ interface HttpError extends Error {
   response?: { headers?: { "retry-after"?: string } };
 }
 
+// Narrows an unknown catch value into an HttpError without altering its
+// shape. Object-shaped rejections (Error instances or plain objects) are
+// passed through untouched so callers keep reading whatever optional
+// properties they carry. Only genuine non-object primitives (a thrown
+// string, number, etc.) are wrapped in a real Error.
+function toHttpError(error: unknown): HttpError {
+  if (typeof error === "object" && error !== null) {
+    return error as HttpError;
+  }
+  return new Error(String(error));
+}
+
 function isRateLimitError(error: HttpError): boolean {
   if (error.status === HTTP_STATUS.TOO_MANY_REQUESTS) return true;
   if (error.message?.includes("rate limit")) return true;
@@ -87,7 +99,7 @@ export function makeRetry(deps: RetryDeps) {
         circuitBreaker.recordSuccess();
         return result;
       } catch (err) {
-        lastError = err as HttpError;
+        lastError = toHttpError(err);
 
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
