@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     restoreMocks: true,
+    exclude: [...configDefaults.exclude, "test/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html", "json-summary"],
@@ -13,6 +14,7 @@ export default defineConfig({
         "src/**/*.test.ts",
         "src/**/*.spec.ts",
         "src/config/types.ts",
+        "src/lib/api.test-helpers.ts",
       ],
       thresholds: {
         lines: 90,
