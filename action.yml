@@ -59,5 +59,7 @@ outputs:
     description: "Number of times circuit breaker opened"
 
 runs:
+  # NOTE: GitHub Actions' runs.using currently supports up to node24 (node26 runtime not yet available).
+  # This repo's engines.node >=26 and CI Node 26 toolchain are for building/testing only, not the runtime.
   using: "node24"
   main: "dist/index.js"
