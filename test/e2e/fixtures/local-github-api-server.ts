@@ -6,19 +6,16 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { WorkflowRun } from "../../../src/config/types";
 
 /**
  * The subset of GitHub's real raw REST API workflow-run shape this project's
  * `octokit.rest.actions.listWorkflowRunsForRepo` response items carry.
- * `src/lib/api.ts` only reads `id`, `workflow_id`, `created_at` and `name`,
- * but real GitHub responses carry many more fields, so extra fields are
- * allowed through the index signature.
+ * `src/lib/api.ts` only reads `id`, `workflow_id`, `created_at` and `name`
+ * (the fields `WorkflowRun` already types), but real GitHub responses carry
+ * many more fields, so extra fields are allowed through the index signature.
  */
-export interface WorkflowRunApiShape {
-  id: number;
-  workflow_id: number;
-  created_at: string;
-  name: string;
+export interface WorkflowRunApiShape extends WorkflowRun {
   [key: string]: unknown;
 }
 
@@ -31,7 +28,13 @@ export interface LocalGithubApiServer {
   setWorkflowRuns(runs: WorkflowRunApiShape[]): void;
   /** Fails the Nth request (1-indexed, across all requests) with `status`. */
   scriptFailure(n: number, status: number): void;
-  /** Clears the request counter and any scripted failures. Server stays up. */
+  /**
+   * Clears the request counter and any scripted failures. Server stays up.
+   * The current consumers isolate tests by starting a fresh server per
+   * test instead, so this exists for a future test file that wants to
+   * reuse one running server instance across multiple `it()`s (cheaper
+   * than a restart) and still needs a clean per-test slate.
+   */
   reset(): void;
   /** Total requests served since start() or since the last reset(). */
   requestCount(): number;
