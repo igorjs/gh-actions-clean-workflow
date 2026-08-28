@@ -147,13 +147,12 @@ describe("dist/index.js subprocess smoke test", () => {
       // only deleteRunById is: scripting the 429 on the first GET was
       // verified empirically to fail the run immediately with zero
       // retries. Scripting it on the first DELETE instead exercises the
-      // real retry/rate-limit code path through the compiled bundle. With
-      // no retry-after header available from the mock server (its
-      // scriptFailure API doesn't support custom headers), this hits the
-      // real DEFAULT_RATE_LIMIT_WAIT_MS (60s) wait in production code, so
-      // this test genuinely takes about a minute.
+      // real retry/rate-limit code path through the compiled bundle. The
+      // mock server attaches a real Retry-After: 1 header, so retry.ts's
+      // handleRateLimitError computes a real 1s wait instead of falling
+      // back to the production DEFAULT_RATE_LIMIT_WAIT_MS (60s) default.
       server.setWorkflowRuns(makeWorkflowRuns({ count: 1 }));
-      server.scriptFailure(2, 429); // request #1 = GET list, #2 = first DELETE
+      server.scriptFailure(2, 429, "1"); // request #1 = GET list, #2 = first DELETE
 
       const result = await runAction({
         INPUT_DRY_RUN: "false",
@@ -166,7 +165,7 @@ describe("dist/index.js subprocess smoke test", () => {
       expect(result.output["runs-failed"]).toBe("0");
       expect(result.output["rate-limit-hits"]).toBe("1");
       expect(result.output["retry-attempts"]).toBe("1");
-    }, 90000);
+    });
   });
 
   describe("Scenario 2: circuit-breaker trip", () => {

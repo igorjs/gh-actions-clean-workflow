@@ -26,8 +26,12 @@ export interface LocalGithubApiServer {
   stop(): Promise<void>;
   /** Configures the full workflow-run dataset served by the list endpoint. */
   setWorkflowRuns(runs: WorkflowRunApiShape[]): void;
-  /** Fails the Nth request (1-indexed, across all requests) with `status`. */
-  scriptFailure(n: number, status: number): void;
+  /**
+   * Fails the Nth request (1-indexed, across all requests) with `status`.
+   * When `retryAfter` is set, attaches a real `Retry-After` response header
+   * carrying that value (GitHub's convention: a string of seconds).
+   */
+  scriptFailure(n: number, status: number, retryAfter?: string): void;
   /**
    * Clears the request counter and any scripted failures. Server stays up.
    * The current consumers isolate tests by starting a fresh server per
@@ -49,7 +53,11 @@ export function createLocalGithubApiServer(): LocalGithubApiServer {
   let baseUrl = "";
   let workflowRuns: WorkflowRunApiShape[] = [];
   let requestTotal = 0;
-  const scriptedFailures = new Map<number, number>();
+  interface ScriptedFailure {
+    status: number;
+    retryAfter?: string;
+  }
+  const scriptedFailures = new Map<number, ScriptedFailure>();
 
   function buildPageUrl(pathname: string, perPage: number, page: number): string {
     const pageUrl = new URL(pathname, baseUrl);
@@ -85,17 +93,25 @@ export function createLocalGithubApiServer(): LocalGithubApiServer {
     res.end();
   }
 
-  function handleScriptedFailure(res: ServerResponse, status: number, requestNumber: number): void {
-    res.writeHead(status, { "Content-Type": "application/json" });
+  function handleScriptedFailure(
+    res: ServerResponse,
+    failure: ScriptedFailure,
+    requestNumber: number
+  ): void {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (failure.retryAfter !== undefined) {
+      headers["Retry-After"] = failure.retryAfter;
+    }
+    res.writeHead(failure.status, headers);
     res.end(JSON.stringify({ message: `Scripted failure for request #${requestNumber}` }));
   }
 
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     requestTotal += 1;
     const requestNumber = requestTotal;
-    const scriptedStatus = scriptedFailures.get(requestNumber);
-    if (scriptedStatus !== undefined) {
-      handleScriptedFailure(res, scriptedStatus, requestNumber);
+    const scriptedFailure = scriptedFailures.get(requestNumber);
+    if (scriptedFailure !== undefined) {
+      handleScriptedFailure(res, scriptedFailure, requestNumber);
       return;
     }
 
@@ -154,8 +170,8 @@ export function createLocalGithubApiServer(): LocalGithubApiServer {
       workflowRuns = runs;
     },
 
-    scriptFailure(n: number, status: number): void {
-      scriptedFailures.set(n, status);
+    scriptFailure(n: number, status: number, retryAfter?: string): void {
+      scriptedFailures.set(n, { status, retryAfter });
     },
 
     reset(): void {
