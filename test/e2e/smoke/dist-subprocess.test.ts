@@ -170,17 +170,20 @@ describe("dist/index.js subprocess smoke test", () => {
 
   describe("Scenario 2: circuit-breaker trip", () => {
     it("trips the circuit breaker exactly once after 5 client-error deletes", async () => {
-      // 6 runs, single page, so the GET list is request #1 and the 6
-      // concurrent DELETE calls are requests #2-#7. Scripting a 400 (a
-      // non-retryable client error) on requests #2-#6 records exactly 5
-      // circuitBreaker.recordFailure() calls, which is
-      // CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD, tripping the breaker to
-      // OPEN. Verified empirically deterministic across repeated runs:
-      // request #7 (the one run left unscripted) always succeeds because
-      // deleteRuns dispatches the whole batch of 6 concurrently via
-      // Promise.allSettled before the breaker trip is observed, so every
-      // already-issued call in this single batch still completes.
-      server.setWorkflowRuns(makeWorkflowRuns({ count: 6 }));
+      // 5 runs, single page, so the GET list is request #1 and the 5
+      // concurrent DELETE calls are requests #2-#6, ALL scripted to fail
+      // with 400 (a non-retryable client error). Every one of them calls
+      // circuitBreaker.recordFailure(), which is order-independent: unlike
+      // an earlier version of this test that mixed a 6th, unscripted
+      // success into the same batch, recordSuccess() resets failureCount
+      // to 0 unconditionally (circuit-breaker.ts's recordSuccess), so a
+      // success landing before all 5 failures had been recorded could
+      // silently prevent the trip. With no success in this batch at all,
+      // failureCount monotonically reaches CIRCUIT_BREAKER_CONFIG
+      // .FAILURE_THRESHOLD (5) regardless of the real concurrent HTTP
+      // calls' settle order, making the trip deterministic by construction
+      // rather than by empirical luck.
+      server.setWorkflowRuns(makeWorkflowRuns({ count: 5 }));
       server.scriptFailure(2, 400);
       server.scriptFailure(3, 400);
       server.scriptFailure(4, 400);
@@ -195,11 +198,11 @@ describe("dist/index.js subprocess smoke test", () => {
       // failed > 0 && !dryRun calls setFailed, so the real process exits
       // non-zero here; this is not the success-path scenario.
       expect(result.code).not.toBe(0);
-      expect(result.output["total-runs-found"]).toBe("6");
-      expect(result.output["runs-deleted"]).toBe("1");
+      expect(result.output["total-runs-found"]).toBe("5");
+      expect(result.output["runs-deleted"]).toBe("0");
       expect(result.output["runs-failed"]).toBe("5");
       expect(result.output["circuit-breaker-trips"]).toBe("1");
-      expect(server.requestCount()).toBe(7);
+      expect(server.requestCount()).toBe(6);
     });
   });
 });
