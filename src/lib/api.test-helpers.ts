@@ -65,31 +65,3 @@ export function makeHttpError(
   }
   return error;
 }
-
-export type FailureOutcome = "success" | { status: number; retryAfter?: string };
-
-/**
- * Creates a stateful, scriptable outcome generator for driving retry and
- * circuit-breaker logic through repeated simulated calls (e.g. "fail the
- * first N calls with status X, then succeed"). Each call to the returned
- * function consumes the next outcome from `script`; once the script is
- * exhausted, its final outcome repeats for every subsequent call. Keeps
- * just enough state (a call counter) for the sustained-failure,
- * intermittent-failure, and Nth-call-failure stress scenarios.
- */
-export function makeFailureInjector(
-  script: FailureOutcome[]
-): () => Promise<object> {
-  let callIndex = 0;
-
-  return function nextCall(): Promise<object> {
-    const outcome = script[Math.min(callIndex, script.length - 1)];
-    callIndex++;
-    if (outcome === "success") {
-      return Promise.resolve({});
-    }
-    return Promise.reject(
-      makeHttpError(`injected failure (status ${outcome.status})`, outcome)
-    );
-  };
-}
