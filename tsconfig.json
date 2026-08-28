@@ -9,6 +9,7 @@
     "types": ["node"],
     "strict": true,
     "noPropertyAccessFromIndexSignature": true,
+    "erasableSyntaxOnly": true,
     "noEmit": true
   },
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "node_modules", "dist"]
