@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
 import type { ApiMetrics, CircuitBreakerHandle } from "../config/types";
+import { makeHttpError } from "./api.test-helpers";
 import { makeRetry } from "./retry";
 
 function makeMetrics(): ApiMetrics {
@@ -26,23 +27,6 @@ function makeCircuitBreaker(): CircuitBreakerHandle & {
   };
 }
 
-function makeHttpError(
-  message: string,
-  opts: { status?: number; retryAfter?: string } = {}
-): Error & {
-  status?: number;
-  response?: { headers?: Record<string, string> };
-} {
-  const error: Error & {
-    status?: number;
-    response?: { headers?: Record<string, string> };
-  } = new Error(message);
-  error.status = opts.status;
-  if (opts.retryAfter !== undefined) {
-    error.response = { headers: { "retry-after": opts.retryAfter } };
-  }
-  return error;
-}
 
 describe("retry", () => {
   describe("withRetry", () => {
