@@ -9,13 +9,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov", "html", "json-summary"],
       include: ["src/**/*.ts"],
-      exclude: [
-        "src/**/*.d.ts",
-        "src/**/*.test.ts",
-        "src/**/*.spec.ts",
-        "src/config/types.ts",
-        "src/lib/api.test-helpers.ts",
-      ],
+      exclude: ["src/**/*.d.ts", "src/config/types.ts"],
       thresholds: {
         lines: 90,
         functions: 90,

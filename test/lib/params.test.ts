@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeParams } from "./params";
+import { makeParams } from "../../src/lib/params";
 
 function makeGetInput(returnValue = "") {
   return vi
