@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**/*.ts", "*.ts"],
+    "includes": ["src/**/*.ts", "*.ts", "test/**/*.ts", "!test/e2e/**"],
     "ignoreUnknown": true
   },
   "plugins": [

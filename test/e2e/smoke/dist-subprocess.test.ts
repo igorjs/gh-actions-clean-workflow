@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { makeWorkflowRuns } from "../../../src/lib/api.test-helpers";
+import { makeWorkflowRuns } from "../../lib/api.test-helpers";
 import {
   createLocalGithubApiServer,
   type LocalGithubApiServer,

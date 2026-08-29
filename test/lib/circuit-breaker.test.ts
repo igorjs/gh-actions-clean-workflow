@@ -8,8 +8,8 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../config/constants";
-import { createCircuitBreaker } from "./circuit-breaker";
+import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../../src/config/constants";
+import { createCircuitBreaker } from "../../src/lib/circuit-breaker";
 
 function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
   vi.useFakeTimers();
