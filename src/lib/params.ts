@@ -4,8 +4,8 @@ import {
   DEFAULTS,
   ERROR_MESSAGES,
   VALIDATION_RULES,
-} from "../config/constants";
-import type { Params, ParamsDeps } from "../config/types";
+} from "#src/config/constants";
+import type { Params, ParamsDeps } from "#src/config/types";
 
 export function makeParams(deps: ParamsDeps): Params {
   const { getInput, setSecret } = deps;
@@ -26,8 +26,7 @@ export function makeParams(deps: ParamsDeps): Params {
         throw new Error(ERROR_MESSAGES.INVALID_OWNER_FORMAT);
       return value;
     }
-    if (env["GITHUB_REPOSITORY_OWNER"])
-      return env["GITHUB_REPOSITORY_OWNER"];
+    if (env["GITHUB_REPOSITORY_OWNER"]) return env["GITHUB_REPOSITORY_OWNER"];
     throw new Error(ERROR_MESSAGES.INVALID_OWNER);
   }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import { API_CONFIG, CircuitState } from "../config/constants";
+import { API_CONFIG, CircuitState } from "#src/config/constants";
 import type {
   Api,
   ApiDeps,
@@ -8,7 +8,7 @@ import type {
   DeletionResult,
   RunsToDeleteResult,
   WorkflowRun,
-} from "../config/types";
+} from "#src/config/types";
 import { createCircuitBreaker } from "./circuit-breaker";
 import * as logger from "./logger";
 import { makeRetry } from "./retry";

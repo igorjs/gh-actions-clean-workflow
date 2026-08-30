@@ -3,10 +3,10 @@ import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
-import type { Api, ApiMetrics, RunEnv } from "./config/types";
-import { makeApi } from "./lib/api";
-import * as logger from "./lib/logger";
-import { makeParams } from "./lib/params";
+import type { Api, ApiMetrics, RunEnv } from "#src/config/types";
+import { makeApi } from "#src/lib/api";
+import * as logger from "#src/lib/logger";
+import { makeParams } from "#src/lib/params";
 
 const ZERO_METRICS: ApiMetrics = {
   totalRequests: 0,
