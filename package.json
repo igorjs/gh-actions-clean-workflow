@@ -8,6 +8,10 @@
     "pnpm": ">=11.5.2"
   },
   "type": "module",
+  "imports": {
+    "#src/*": "./src/*.ts",
+    "#test/*": "./test/*.ts"
+  },
   "main": "dist/index.js",
   "scripts": {
     "lint": "biome lint src test",

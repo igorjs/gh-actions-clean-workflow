@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { makeWorkflowRuns } from "../../lib/api.test-helpers";
+import { makeWorkflowRuns } from "#test/lib/api.test-helpers";
 import {
   createLocalGithubApiServer,
   type LocalGithubApiServer,
-} from "../fixtures/local-github-api-server";
+} from "#test/e2e/fixtures/local-github-api-server";
 
 /**
  * Spawns the real, minified `dist/index.js` produced by `pnpm run build`

@@ -3,7 +3,7 @@
  * Standardized logging utility
  */
 
-import { LOG_PREFIX } from "../config/constants";
+import { LOG_PREFIX } from "#src/config/constants";
 
 /**
  * Log informational message
