@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import type { WorkflowRun } from "../../src/config/types";
+import type { WorkflowRun } from "#src/config/types";
 
 export interface MakeWorkflowRunsOptions {
   /** Total number of runs to generate. */

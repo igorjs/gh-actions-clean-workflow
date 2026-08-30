@@ -8,8 +8,8 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../../src/config/constants";
-import { createCircuitBreaker } from "../../src/lib/circuit-breaker";
+import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
+import { createCircuitBreaker } from "#src/lib/circuit-breaker";
 
 function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
   vi.useFakeTimers();
@@ -191,7 +191,8 @@ describe("CircuitBreaker", () => {
       // HALF_OPEN -> OPEN transition, never while already OPEN, holding
       // at scale (100 failures) and not just for a couple of extra calls.
       const cb = createCircuitBreaker();
-      for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) cb.recordFailure();
+      for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++)
+        cb.recordFailure();
       for (let i = 0; i < 100; i++) cb.recordFailure();
       expect(cb.getState()).toBe(CircuitState.OPEN);
       expect(cb.getTripCount()).toBe(1);
@@ -205,7 +206,8 @@ describe("CircuitBreaker", () => {
       const cb = createCircuitBreaker();
 
       for (let cycle = 1; cycle <= 3; cycle++) {
-        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) cb.recordFailure();
+        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++)
+          cb.recordFailure();
         expect(cb.getState()).toBe(CircuitState.OPEN);
         expect(cb.getTripCount()).toBe(cycle);
 
@@ -213,7 +215,8 @@ describe("CircuitBreaker", () => {
         cb.canExecute(); // triggers HALF_OPEN transition
         expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
 
-        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++) cb.recordSuccess();
+        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++)
+          cb.recordSuccess();
         expect(cb.getState()).toBe(CircuitState.CLOSED);
         expect(cb.getTripCount()).toBe(cycle); // recovery never increments trip count
       }

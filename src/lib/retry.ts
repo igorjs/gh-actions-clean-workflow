@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-import { API_CONFIG, HTTP_STATUS } from "../config/constants";
+import { API_CONFIG, HTTP_STATUS } from "#src/config/constants";
 import type {
   ApiMetrics,
   CircuitBreakerHandle,
   RetryDeps,
-} from "../config/types";
+} from "#src/config/types";
 import * as logger from "./logger";
 
 interface HttpError extends Error {

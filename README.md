@@ -33,7 +33,6 @@ Need a full workflow file you can drop in? See [Examples](#examples) below.
 - [Development](#development)
 - [Migrating from v7](#migrating-from-v7)
 - [Migrating from v6](#migrating-from-v6)
-- [Contributing](#contributing)
 - [Security](#security)
 - [License](#license)
 
@@ -292,35 +291,7 @@ Releases follow [Semantic Versioning](https://semver.org/). See the [Releases pa
 
 ## Development
 
-### Prerequisites
-
-- Node.js >= 26.0.0 (development; the published action runs on GitHub's `node24` runtime)
-- pnpm >= 11.5.2 (enforced via `packageManager`; use [Corepack](https://nodejs.org/api/corepack.html))
-
-### Setup
-
-```bash
-corepack enable
-pnpm install
-```
-
-### Common commands
-
-```bash
-pnpm run check         # Biome lint + format check
-pnpm run check:fix     # Auto-fix lint + format
-pnpm run test          # Vitest run
-pnpm run test:watch    # Vitest watch
-pnpm run test:coverage # Vitest run with v8 coverage + thresholds
-pnpm run build         # esbuild bundle to dist/index.js
-pnpm run all           # check + test + build
-```
-
-### Testing
-
-Tests run on Vitest with v8 coverage. Coverage thresholds are enforced by `vitest.config.ts` (lines/functions/branches/statements >= 95%); the CI build fails if coverage drops below them. Live coverage is published as a Shields endpoint badge (see top of this README) from the [`Coverage Badge`](https://github.com/igorjs/gh-actions-clean-workflow/actions/workflows/coverage-badge.yml) workflow. The unit suite also covers large-N and boundary stress scenarios (pagination, batching, circuit-breaker thresholds) and sustained-failure/retry sequences; these run inside the same coverage-gated `pnpm run test`, no separate command needed.
-
-A second, non-coverage-gated suite lives under `test/e2e/`: a local mock GitHub API server (`test/e2e/fixtures/`) plus a subprocess smoke test (`test/e2e/smoke/`) that spawns the real compiled `dist/index.js` against it, proving the bundled artifact's pagination, retry, and circuit-breaker logic work post-build, not just the source. Run it with `pnpm run test:e2e`, which uses a separate config, `vitest.e2e.config.ts`, kept outside the coverage gate on purpose since it's a different test type. The CI `e2e-tests` job runs this suite on every push/PR and reports its own pass/fail in the checks tab, but isn't yet part of the required `report-ci-status` check set; see the graduation-criterion comment in `.github/workflows/ci.yml` for why.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites, setup, common commands, and testing details. Shared org-wide contribution rules (DCO, commit conventions, the code style baseline) are one hop further, linked from `CONTRIBUTING.md`.
 
 ## Migrating from v7
 
@@ -373,16 +344,6 @@ v7 keeps the same input names but adds new ones; existing v6 workflows continue 
 +   workflow_names: "CI, Deploy"
 +   dry_run: false
 ```
-
-## Contributing
-
-PRs and issues are welcome. Before submitting:
-
-- Run `pnpm run all` locally (lint + tests + build)
-- Sign your commits (DCO is enforced)
-- Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
-
-See [.github/CONTRIBUTING-RULES.md](.github/CONTRIBUTING-RULES.md) for project-wide contribution rules.
 
 ## Security
 

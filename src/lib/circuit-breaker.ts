@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "../config/constants";
-import type { CircuitBreakerHandle } from "../config/types";
+import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
+import type { CircuitBreakerHandle } from "#src/config/types";
 import * as logger from "./logger";
 
 export function createCircuitBreaker(): CircuitBreakerHandle {
