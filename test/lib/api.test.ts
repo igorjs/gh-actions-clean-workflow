@@ -8,8 +8,8 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { API_CONFIG } from "../../src/config/constants";
-import { makeApi } from "../../src/lib/api";
+import { API_CONFIG } from "#src/config/constants";
+import { makeApi } from "#src/lib/api";
 import { makeHttpError, makeWorkflowRuns } from "./api.test-helpers";
 
 function makeTestDeps() {
