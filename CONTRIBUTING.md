@@ -20,7 +20,7 @@ pnpm install
 
 No project-specific code style rules beyond the baseline. See [.github/CONTRIBUTING-RULES.md](.github/CONTRIBUTING-RULES.md#code-style-baseline) for SPDX header, dependency policy, and commit signing requirements.
 
-This project uses Node's native subpath imports for local imports that cross a folder boundary: `#src/*` resolves to `src/*`, `#test/*` resolves to `test/*` (see the `imports` field in `package.json`). An import between files in the same folder stays a relative import (e.g. `./logger`); only cross-folder imports use the `#src/*`/`#test/*` alias.
+This project uses Node's native subpath imports for local imports that cross a folder boundary: `#src/*` resolves to `src/*.ts`, `#test/*` resolves to `test/*.ts` (the alias only covers `.ts` files today; see the `imports` field in `package.json`). An import between files in the same folder stays a relative import (e.g. `./logger`); only cross-folder imports use the `#src/*`/`#test/*` alias.
 
 ## Tests
 
@@ -43,6 +43,7 @@ A second, non-coverage-gated suite lives under `test/e2e/`: a local mock GitHub 
 ### Before submitting a PR
 
 - Run `pnpm run all` locally (lint, typecheck, tests, build)
+- If you touched `test/e2e/` or any `#test/*` import target, also run `pnpm run test:e2e` locally: its CI job doesn't yet gate merges
 - Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
 
 (DCO / commit signing requirements are already covered by [.github/CONTRIBUTING-RULES.md](.github/CONTRIBUTING-RULES.md)'s baseline; not repeated here.)
