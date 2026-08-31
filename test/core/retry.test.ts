@@ -21,6 +21,7 @@ function zeroMetrics(): ApiMetrics {
     rateLimitHits: 0,
     retries: 0,
     failedRequests: 0,
+    circuitBreakerTrips: 0,
   };
 }
 
@@ -30,6 +31,7 @@ const ALL_FIELDS: (keyof ApiMetrics)[] = [
   "rateLimitHits",
   "retries",
   "failedRequests",
+  "circuitBreakerTrips",
 ];
 
 describe.each([

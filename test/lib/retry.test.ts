@@ -128,8 +128,9 @@ describe("retry", () => {
     });
 
     it("should fall back to the default rate-limit wait when no Retry-After header is present", async () => {
-      // Regression test for the previously uncovered branch (retry.ts BRDA:40,2,1,0):
-      // a 429/403 with no retry-after header must fall through to the default wait.
+      // Regression test for handleRateLimitError's fallback branch
+      // (src/lib/retry.ts:46-48): a 429/403 with no retry-after header must
+      // fall through to the default wait.
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
       const metrics = makeMetrics();
@@ -218,7 +219,7 @@ describe("retry", () => {
     });
 
     it("should fail fast on a bare 403 (no Retry-After) instead of treating it as a rate limit", async () => {
-      // Pins isRateLimitError's exact gate (retry.ts:36-38):
+      // Pins isRateLimitError's exact gate (src/core/retry.ts:55-57):
       // `error.status === HTTP_STATUS.FORBIDDEN && !!error.response?.headers?.["retry-after"]`.
       // A bare 403 with no retry-after header fails the gate and must NOT be
       // retried, distinct from the 403+Retry-After case below which IS.
