@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
 import type { Api, ApiMetrics, RunEnv } from "#src/config/types";
+import {
+  computeOutputs,
+  computeWorkflowStatsMessages,
+} from "#src/core/reporting";
 import { makeApi } from "#src/lib/api";
 import * as logger from "#src/lib/logger";
 import { makeParams } from "#src/lib/params";
@@ -24,15 +28,10 @@ function exportMetrics(
   metrics: ApiMetrics,
   setOut: (name: string, value: string) => void
 ): void {
-  setOut("total-runs-found", totalRuns.toString());
-  setOut("runs-deleted", succeeded.toString());
-  setOut("runs-failed", failed.toString());
-  setOut("total-api-requests", metrics.totalRequests.toString());
-  setOut("successful-requests", metrics.successfulRequests.toString());
-  setOut("failed-requests", metrics.failedRequests.toString());
-  setOut("retry-attempts", metrics.retries.toString());
-  setOut("rate-limit-hits", metrics.rateLimitHits.toString());
-  setOut("circuit-breaker-trips", metrics.circuitBreakerTrips.toString());
+  for (const [name, value] of Object.entries(
+    computeOutputs(totalRuns, succeeded, failed, metrics)
+  ))
+    setOut(name, value);
 }
 
 function logWorkflowStats(
@@ -40,18 +39,12 @@ function logWorkflowStats(
   runsToKeep: number,
   dryRun: boolean
 ): void {
-  if (runsToKeep > 0 && workflowStats.size > 0) {
-    for (const [workflowId, stats] of workflowStats) {
-      if (stats.toDelete > 0) {
-        const action = dryRun ? "would delete" : "deleting";
-        logger.info(
-          `Workflow ${workflowId}: keeping ${
-            stats.total - stats.toDelete
-          } runs, ${action} ${stats.toDelete} runs`
-        );
-      }
-    }
-  }
+  for (const msg of computeWorkflowStatsMessages(
+    workflowStats,
+    runsToKeep,
+    dryRun
+  ))
+    logger.info(msg);
 }
 
 function makeDefaultEnv(): RunEnv {
