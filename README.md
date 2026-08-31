@@ -10,6 +10,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A526-brightgreen.svg)](package.json)
 
+GitHub Actions histories grow without bounds. Scheduled jobs, PR checks, and matrix builds can leave a repo with thousands of runs a year, cluttering the Actions tab and eating into your plan's storage. This action prunes the old ones on a schedule you control, with retries, rate-limit pacing, and a circuit breaker so a flaky API call doesn't leave you with a half-finished cleanup.
+
+If this saves your team Actions minutes and storage, a ⭐ on the repo helps other teams find it too.
+
 ## Quick start
 
 ```yaml
@@ -29,6 +33,7 @@ Need a full workflow file you can drop in? See [Examples](#examples) below.
 - [Permissions](#permissions)
 - [Examples](#examples)
 - [Advanced behavior](#advanced-behavior)
+- [FAQ](#faq)
 - [Versioning](#versioning)
 - [Development](#development)
 - [Migrating from v7](#migrating-from-v7)
@@ -275,6 +280,24 @@ Prevents the action from hammering an unhealthy API.
 - Comma-separated names (`workflow_names: "CI, Deploy"`)
 - **Case-sensitive** match against the workflow's `name:` field
 - Permitted characters: alphanumeric, spaces, dots, dashes, underscores
+
+## FAQ
+
+**Will this delete workflow runs that are still in progress?**
+
+No. The action only ever lists runs with status `completed`; anything queued or running is never touched.
+
+**What does `runs_to_keep: 0` do?**
+
+It deletes every run inside the `runs_older_than` window for that workflow, with nothing kept back. Combine both inputs if you want a fixed floor of recent runs per workflow instead.
+
+**Can I see what would be deleted before it actually happens?**
+
+Yes. Set `dry_run: true` and the action logs every run it would delete without calling the delete API. See [Dry run](#dry-run).
+
+**Does one run of this action clean multiple repositories?**
+
+No. `owner` and `repo` each take a single repository. For multiple repos, add one job (or a matrix) per repository, each pointing at its own `owner`/`repo`.
 
 ## Versioning
 
