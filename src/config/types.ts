@@ -155,6 +155,27 @@ export type CircuitBreakerHandle = {
   getTripCount: () => number;
 };
 
+/**
+ * Immutable snapshot of circuit breaker state, used by the pure
+ * transition functions in `src/core/circuit-breaker.ts`
+ */
+export interface CircuitBreakerState {
+  state: CircuitState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime: number | null;
+  tripCount: number;
+}
+
+/**
+ * A single log event emitted by a pure state transition, to be
+ * dispatched to the logger by the caller
+ */
+export interface LogEvent {
+  level: "info" | "warn";
+  message: string;
+}
+
 export type RunEnv = {
   params: Params;
   getApi: (params: ApiParams) => Api;
