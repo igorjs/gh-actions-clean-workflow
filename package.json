@@ -1,6 +1,7 @@
 {
   "name": "@igorjs/gh-actions-clean-workflow",
   "version": "8.0.0",
+  "private": true,
   "description": "Github Action to delete old workflow runs",
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916",
   "engines": {
@@ -26,7 +27,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build",
+    "changeset": "changeset",
+    "version": "changeset version"
   },
   "keywords": [
     "GitHub",
@@ -41,10 +44,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@changesets/changelog-github": "1.0.0",
+    "@changesets/cli": "3.0.1",
     "@types/node": "^26.4.0",
-    "vitest": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }

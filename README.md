@@ -310,7 +310,7 @@ Pin one of the following based on how aggressively you want updates:
 | Commit SHA | `@<sha>` | Strictest pin. Use when you need byte-for-byte reproducibility (Dependabot can still bump this). |
 | `@main` | `@main` | Not recommended for production; pulls whatever is on `main` at run time. |
 
-Releases follow [Semantic Versioning](https://semver.org/). See the [Releases page](https://github.com/igorjs/gh-actions-clean-workflow/releases) for changelogs.
+Releases follow [Semantic Versioning](https://semver.org/) and are cut automatically by [Changesets](https://github.com/changesets/changesets): merging a PR with a changeset updates a standing "chore: version packages" pull request, and merging that tags the release and moves the floating major tag. See the [Releases page](https://github.com/igorjs/gh-actions-clean-workflow/releases) for changelogs.
 
 ## Development
 
