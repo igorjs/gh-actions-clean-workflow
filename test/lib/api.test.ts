@@ -8,7 +8,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { API_CONFIG } from "#src/config/constants";
+import { API_CONFIG, CIRCUIT_BREAKER_CONFIG } from "#src/config/constants";
 import { makeApi } from "#src/lib/api";
 import { makeHttpError, makeWorkflowRuns } from "./api.test-helpers";
 
@@ -574,6 +574,38 @@ describe("api", () => {
       );
       expect(circuitBreakerCalls.length).toBeGreaterThan(0);
       warnSpy.mockRestore();
+    });
+
+    it("should recover via the injected now once TIMEOUT_MS elapses, not the wall clock", async () => {
+      // Integration proof that makeApi wires its injected `now` into the
+      // real circuit-breaker call site: a frozen wall-clock check would
+      // never observe CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS elapsing during a
+      // synchronous test run, so this only passes if canExecute() actually
+      // consults the advanced mock `now` instead of Date.now().
+      const deps = makeTestDeps();
+      let currentTime = Date.now();
+      deps.now.mockImplementation(() => currentTime);
+      const error = Object.assign(new Error("Bad Request"), { status: 400 });
+      deps.mockDeleteWorkflowRun.mockRejectedValue(error);
+      const api = makeApi(deps)(BASE_PARAMS);
+
+      // Trip the circuit breaker via 5 failed deleteRunById calls
+      // (FAILURE_THRESHOLD is 5).
+      const tripResult = await api.deleteRuns([1, 2, 3, 4, 5]);
+      expect(tripResult.failed).toBe(5);
+      expect(api.getMetrics().circuitBreakerTrips).toBe(1);
+
+      // Advance the mock now past the recovery timeout.
+      currentTime += CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS + 1;
+
+      deps.mockDeleteWorkflowRun.mockResolvedValueOnce({});
+      const recoveryResult = await api.deleteRuns([6]);
+      expect(recoveryResult.succeeded).toBe(1);
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        run_id: 6,
+      });
     });
   });
 

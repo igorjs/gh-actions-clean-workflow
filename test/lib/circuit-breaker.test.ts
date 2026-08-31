@@ -11,16 +11,15 @@ import {
 import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
 import { createCircuitBreaker } from "#src/lib/circuit-breaker";
 
-function openThenHalfOpen(): ReturnType<typeof createCircuitBreaker> {
-  vi.useFakeTimers();
-  const cb = createCircuitBreaker();
-  for (let i = 0; i < 5; i++) cb.recordFailure();
-  vi.advanceTimersByTime(60000);
-  cb.canExecute(); // triggers HALF_OPEN transition
-  return cb;
-}
-
-describe("CircuitBreaker", () => {
+// This suite proves only the impure shell's own responsibilities: that its
+// closed-over state variable actually persists and updates across separate
+// method calls, and that the injected `now` (or its Date.now default) drives
+// timeout tracking. Every state-machine branch (each CLOSED/OPEN/HALF_OPEN
+// transition, tripCount bookkeeping, emitted events) is exercised directly
+// against the pure functions in test/core/circuit-breaker.test.ts, so
+// re-testing those branches here through the shell would only duplicate
+// that coverage without proving anything new about the shell itself.
+describe("CircuitBreaker shell", () => {
   let consoleInfoSpy: MockInstance;
   let consoleWarnSpy: MockInstance;
 
@@ -35,209 +34,73 @@ describe("CircuitBreaker", () => {
     vi.useRealTimers();
   });
 
-  describe("Initial state", () => {
-    it("should start in CLOSED state", () => {
-      const cb = createCircuitBreaker();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
+  it("persists state across multiple calls instead of resetting it each call", () => {
+    const cb = createCircuitBreaker();
+    expect(cb.getState()).toBe(CircuitState.CLOSED);
+    expect(cb.getTripCount()).toBe(0);
 
-    it("should allow execution in CLOSED state", () => {
-      const cb = createCircuitBreaker();
-      expect(cb.canExecute()).toBe(true);
-    });
+    // Two failures short of the threshold: if the shell re-created its state
+    // on every call instead of threading it through, this would never trip.
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD - 1; i++) {
+      cb.recordFailure();
+    }
+    expect(cb.getState()).toBe(CircuitState.CLOSED);
+
+    cb.recordFailure();
+    expect(cb.getState()).toBe(CircuitState.OPEN);
+    expect(cb.getTripCount()).toBe(1);
   });
 
-  describe("CLOSED state behavior", () => {
-    it("should remain CLOSED after successful operations", () => {
-      const cb = createCircuitBreaker();
-      cb.recordSuccess();
-      cb.recordSuccess();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
+  it("threads recordSuccess() through the closed-over state like recordFailure()", () => {
+    let currentTime = 0;
+    const cb = createCircuitBreaker({ now: () => currentTime });
 
-    it("should transition to OPEN after reaching failure threshold", () => {
-      const cb = createCircuitBreaker();
-      // FAILURE_THRESHOLD is 5
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.OPEN);
-    });
-
-    it("should reset failure count on success", () => {
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 4; i++) cb.recordFailure();
-      cb.recordSuccess();
-      // One more failure shouldn't open (count was reset)
+    // Trip the breaker, then recover it entirely through the shell's own
+    // methods: if recordSuccess() didn't thread its result back into the
+    // shell's state variable (s = next), this would never reach CLOSED.
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) {
       cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
+    }
+    expect(cb.getState()).toBe(CircuitState.OPEN);
+
+    currentTime += CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS;
+    expect(cb.canExecute()).toBe(true);
+    expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
+
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++) {
+      cb.recordSuccess();
+    }
+    expect(cb.getState()).toBe(CircuitState.CLOSED);
+    expect(cb.getTripCount()).toBe(1);
   });
 
-  describe("OPEN state behavior", () => {
-    it("should reject execution when OPEN", () => {
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      expect(cb.canExecute()).toBe(false);
-    });
+  it("uses an injected now instead of the wall clock to drive timeout recovery", () => {
+    let currentTime = 0;
+    const cb = createCircuitBreaker({ now: () => currentTime });
 
-    it("should remain OPEN before timeout expires", () => {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      vi.advanceTimersByTime(59999); // just under 60s timeout
-      expect(cb.canExecute()).toBe(false);
-    });
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) {
+      cb.recordFailure();
+    }
+    expect(cb.getState()).toBe(CircuitState.OPEN);
 
-    it("should transition to HALF_OPEN after timeout", () => {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      vi.advanceTimersByTime(60000);
-      expect(cb.canExecute()).toBe(true);
-      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
-    });
+    // The real wall clock never moves in this test, only the injected one
+    // does. If canExecute() still read Date.now() internally, this would
+    // stay OPEN forever instead of recovering.
+    currentTime += CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS;
+    expect(cb.canExecute()).toBe(true);
+    expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
   });
 
-  describe("HALF_OPEN state behavior", () => {
-    it("should allow execution in HALF_OPEN state", () => {
-      const cb = openThenHalfOpen();
-      expect(cb.canExecute()).toBe(true);
-    });
+  it("defaults to Date.now when created with no deps", () => {
+    vi.useFakeTimers();
+    const cb = createCircuitBreaker();
 
-    it("should transition to CLOSED after success threshold", () => {
-      const cb = openThenHalfOpen();
-      // SUCCESS_THRESHOLD is 2
-      cb.recordSuccess();
-      cb.recordSuccess();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
-
-    it("should transition back to OPEN on failure", () => {
-      const cb = openThenHalfOpen();
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) {
       cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.OPEN);
-    });
+    }
+    vi.advanceTimersByTime(CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS);
 
-    it("should not accumulate success count after transitioning to CLOSED", () => {
-      const cb = openThenHalfOpen();
-      cb.recordSuccess();
-      cb.recordSuccess(); // → CLOSED
-      // Fail 4 times: should stay CLOSED (success count was reset)
-      for (let i = 0; i < 4; i++) cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
-  });
-
-  describe("State transitions", () => {
-    it("complete cycle: CLOSED → OPEN → HALF_OPEN → CLOSED", () => {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.OPEN);
-      vi.advanceTimersByTime(60000);
-      cb.canExecute();
-      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
-      cb.recordSuccess();
-      cb.recordSuccess();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
-
-    it("complete cycle: CLOSED → OPEN → HALF_OPEN → OPEN", () => {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      vi.advanceTimersByTime(60000);
-      cb.canExecute();
-      cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.OPEN);
-    });
-  });
-
-  describe("getTripCount", () => {
-    it("should start at 0", () => {
-      const cb = createCircuitBreaker();
-      expect(cb.getTripCount()).toBe(0);
-    });
-
-    it("should increment exactly once on a CLOSED -> OPEN transition", () => {
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      expect(cb.getTripCount()).toBe(1);
-    });
-
-    it("should not increment further while remaining OPEN", () => {
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      cb.recordFailure();
-      cb.recordFailure();
-      expect(cb.getTripCount()).toBe(1);
-    });
-
-    it("should increment again on a HALF_OPEN -> OPEN transition", () => {
-      const cb = openThenHalfOpen();
-      cb.recordFailure();
-      expect(cb.getTripCount()).toBe(2);
-    });
-
-    it("should not increment when HALF_OPEN recovers to CLOSED", () => {
-      const cb = openThenHalfOpen();
-      cb.recordSuccess();
-      cb.recordSuccess();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-      expect(cb.getTripCount()).toBe(1);
-    });
-
-    it("should stay at trip count 1 across 100 sustained failures while OPEN", () => {
-      // Pins: tripCount increments only on a genuine CLOSED -> OPEN or
-      // HALF_OPEN -> OPEN transition, never while already OPEN, holding
-      // at scale (100 failures) and not just for a couple of extra calls.
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++)
-        cb.recordFailure();
-      for (let i = 0; i < 100; i++) cb.recordFailure();
-      expect(cb.getState()).toBe(CircuitState.OPEN);
-      expect(cb.getTripCount()).toBe(1);
-    });
-
-    it("should track cumulative trip count exactly across 3 full trip/recover cycles", () => {
-      // Pins: tripCount accumulates correctly across a sustained sequence of
-      // FAILURE_THRESHOLD trip -> TIMEOUT_MS recovery -> SUCCESS_THRESHOLD
-      // cycles, not just the single-cycle case the other tests already cover.
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-
-      for (let cycle = 1; cycle <= 3; cycle++) {
-        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++)
-          cb.recordFailure();
-        expect(cb.getState()).toBe(CircuitState.OPEN);
-        expect(cb.getTripCount()).toBe(cycle);
-
-        vi.advanceTimersByTime(CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS);
-        cb.canExecute(); // triggers HALF_OPEN transition
-        expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
-
-        for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++)
-          cb.recordSuccess();
-        expect(cb.getState()).toBe(CircuitState.CLOSED);
-        expect(cb.getTripCount()).toBe(cycle); // recovery never increments trip count
-      }
-    });
-  });
-
-  describe("Edge cases", () => {
-    it("should handle success in CLOSED state without issues", () => {
-      const cb = createCircuitBreaker();
-      expect(() => cb.recordSuccess()).not.toThrow();
-      expect(cb.getState()).toBe(CircuitState.CLOSED);
-    });
-
-    it("should handle partial success in HALF_OPEN", () => {
-      vi.useFakeTimers();
-      const cb = createCircuitBreaker();
-      for (let i = 0; i < 5; i++) cb.recordFailure();
-      vi.advanceTimersByTime(60000);
-      cb.canExecute();
-      cb.recordSuccess(); // only 1 of 2 needed
-      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
-    });
+    expect(cb.canExecute()).toBe(true);
+    expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
   });
 });

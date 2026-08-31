@@ -19,7 +19,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
   return (params: ApiParams): Api => {
     const { token, owner, repo, dryRun = false, workflowNames = [] } = params;
     const octokit = getOctokit(token);
-    const circuitBreaker = createCircuitBreaker();
+    const circuitBreaker = createCircuitBreaker({ now });
     const withRetry = makeRetry({ sleep });
 
     const metrics: ApiMetrics = {
