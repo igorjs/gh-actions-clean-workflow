@@ -60,7 +60,7 @@ describe("computeWorkflowStatsMessages", () => {
     const workflowStats = new Map([[1, { total: 5, toDelete: 3 }]]);
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 0, false);
+    const result = computeWorkflowStatsMessages(workflowStats, 0, "deleting");
 
     // Assert
     expect(result).toEqual([]);
@@ -71,7 +71,7 @@ describe("computeWorkflowStatsMessages", () => {
     const workflowStats = new Map([[1, { total: 5, toDelete: 3 }]]);
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, -1, false);
+    const result = computeWorkflowStatsMessages(workflowStats, -1, "deleting");
 
     // Assert
     expect(result).toEqual([]);
@@ -85,7 +85,7 @@ describe("computeWorkflowStatsMessages", () => {
     >();
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 5, false);
+    const result = computeWorkflowStatsMessages(workflowStats, 5, "deleting");
 
     // Assert
     expect(result).toEqual([]);
@@ -96,32 +96,25 @@ describe("computeWorkflowStatsMessages", () => {
     const workflowStats = new Map([[1, { total: 5, toDelete: 0 }]]);
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 5, false);
+    const result = computeWorkflowStatsMessages(workflowStats, 5, "deleting");
 
     // Assert
     expect(result).toEqual([]);
   });
 
-  it("says 'would delete' when dryRun is true", () => {
+  it("uses the given action verb verbatim in each message", () => {
     // Arrange
     const workflowStats = new Map([[1, { total: 5, toDelete: 3 }]]);
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 5, true);
+    const result = computeWorkflowStatsMessages(
+      workflowStats,
+      5,
+      "would delete"
+    );
 
     // Assert
     expect(result).toEqual(["Workflow 1: keeping 2 runs, would delete 3 runs"]);
-  });
-
-  it("says 'deleting' when dryRun is false", () => {
-    // Arrange
-    const workflowStats = new Map([[1, { total: 5, toDelete: 3 }]]);
-
-    // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 5, false);
-
-    // Assert
-    expect(result).toEqual(["Workflow 1: keeping 2 runs, deleting 3 runs"]);
   });
 
   it("returns one message per workflow with nonzero toDelete, in Map iteration order", () => {
@@ -133,7 +126,7 @@ describe("computeWorkflowStatsMessages", () => {
     ]);
 
     // Act
-    const result = computeWorkflowStatsMessages(workflowStats, 5, false);
+    const result = computeWorkflowStatsMessages(workflowStats, 5, "deleting");
 
     // Assert
     expect(result).toEqual([

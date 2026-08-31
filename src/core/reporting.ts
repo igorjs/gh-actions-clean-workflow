@@ -29,18 +29,17 @@ export function computeOutputs(
 export function computeWorkflowStatsMessages(
   workflowStats: Map<number, WorkflowStats>,
   runsToKeep: number,
-  dryRun: boolean
+  actionVerb: string
 ): string[] {
   const messages: string[] = [];
 
   if (runsToKeep > 0 && workflowStats.size > 0) {
     for (const [workflowId, stats] of workflowStats) {
       if (stats.toDelete > 0) {
-        const action = dryRun ? "would delete" : "deleting";
         messages.push(
           `Workflow ${workflowId}: keeping ${
             stats.total - stats.toDelete
-          } runs, ${action} ${stats.toDelete} runs`
+          } runs, ${actionVerb} ${stats.toDelete} runs`
         );
       }
     }

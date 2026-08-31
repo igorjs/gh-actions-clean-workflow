@@ -7,11 +7,6 @@ export interface HttpError extends Error {
   response?: { headers?: { "retry-after"?: string } };
 }
 
-// Pure counterparts to the inline mutations `withRetry` in `src/lib/retry.ts`
-// applies directly to its `metrics` object (e.g. `metrics.totalRequests++`).
-// Each function below returns a NEW ApiMetrics with exactly its own field
-// incremented, leaving the input untouched, so metric updates can be
-// composed and tested without a shared mutable object.
 export function recordAttempt(metrics: ApiMetrics): ApiMetrics {
   return { ...metrics, totalRequests: metrics.totalRequests + 1 };
 }
