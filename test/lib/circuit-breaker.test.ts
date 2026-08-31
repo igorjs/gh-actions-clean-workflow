@@ -51,6 +51,29 @@ describe("CircuitBreaker shell", () => {
     expect(cb.getTripCount()).toBe(1);
   });
 
+  it("threads recordSuccess() through the closed-over state like recordFailure()", () => {
+    let currentTime = 0;
+    const cb = createCircuitBreaker({ now: () => currentTime });
+
+    // Trip the breaker, then recover it entirely through the shell's own
+    // methods: if recordSuccess() didn't thread its result back into the
+    // shell's state variable (s = next), this would never reach CLOSED.
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD; i++) {
+      cb.recordFailure();
+    }
+    expect(cb.getState()).toBe(CircuitState.OPEN);
+
+    currentTime += CIRCUIT_BREAKER_CONFIG.TIMEOUT_MS;
+    expect(cb.canExecute()).toBe(true);
+    expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
+
+    for (let i = 0; i < CIRCUIT_BREAKER_CONFIG.SUCCESS_THRESHOLD; i++) {
+      cb.recordSuccess();
+    }
+    expect(cb.getState()).toBe(CircuitState.CLOSED);
+    expect(cb.getTripCount()).toBe(1);
+  });
+
   it("uses an injected now instead of the wall clock to drive timeout recovery", () => {
     let currentTime = 0;
     const cb = createCircuitBreaker({ now: () => currentTime });
