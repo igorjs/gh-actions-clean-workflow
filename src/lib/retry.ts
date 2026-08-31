@@ -86,18 +86,19 @@ export function makeRetry(deps: RetryDeps) {
   }
 
   // Shell around the pure classification and metrics functions from
-  // #src/core/retry: it owns the actual attempt loop, the sleeping between
-  // attempts, and the effectful circuitBreaker/logger calls that the pure
-  // functions deliberately don't perform.
+  // #src/core/retry: it owns the actual attempt sequence, the sleeping
+  // between attempts, and the effectful circuitBreaker/logger calls that the
+  // pure functions deliberately don't perform. Expressed as a recursive
+  // attempt() rather than a for-loop with continue/break: each branch's
+  // "retry or give up" decision is then a direct return/throw instead of
+  // relying on loop fallthrough and a post-loop `throw lastError`.
   return async function withRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
     metrics: ApiMetrics,
     circuitBreaker: CircuitBreakerHandle
   ): Promise<T> {
-    let lastError: HttpError | null = null;
-
-    for (let attempt = 0; attempt <= API_CONFIG.MAX_RETRIES; attempt++) {
+    async function attempt(attemptNum: number): Promise<T> {
       try {
         apply(metrics, recordAttempt);
         const result = await operation();
@@ -105,14 +106,15 @@ export function makeRetry(deps: RetryDeps) {
         circuitBreaker.recordSuccess();
         return result;
       } catch (err) {
-        lastError = toHttpError(err);
+        const lastError = toHttpError(err);
 
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
-          if (attempt === API_CONFIG.MAX_RETRIES) {
+          if (attemptNum === API_CONFIG.MAX_RETRIES) {
             recordFailure(metrics, circuitBreaker);
+            throw lastError;
           }
-          continue;
+          return attempt(attemptNum + 1);
         }
 
         if (isClientError(lastError)) {
@@ -126,19 +128,21 @@ export function makeRetry(deps: RetryDeps) {
           throw lastError;
         }
 
-        if (attempt < API_CONFIG.MAX_RETRIES) {
+        if (attemptNum < API_CONFIG.MAX_RETRIES) {
           await handleRetryableError(
             lastError,
             operationName,
-            attempt,
+            attemptNum,
             metrics
           );
-        } else {
-          recordFailure(metrics, circuitBreaker);
+          return attempt(attemptNum + 1);
         }
+
+        recordFailure(metrics, circuitBreaker);
+        throw lastError;
       }
     }
 
-    throw lastError;
+    return attempt(0);
   };
 }

@@ -16,6 +16,16 @@ import * as logger from "./logger";
 import { makeRetry } from "./retry";
 
 // Closes over nothing, so it's declared once at module scope instead of as
+// an inline arrow rebuilt on every deleteRuns call.
+function chunk<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
+
+// Closes over nothing, so it's declared once at module scope instead of as
 // an inline arrow rebuilt on every getWorkflowRuns call.
 function toWorkflowRun(run: {
   id: number;
@@ -81,40 +91,52 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
       });
     }
 
-    async function deleteRuns(runs: number[]): Promise<DeletionResult> {
-      let succeeded = 0;
-      let failed = 0;
-
-      for (let i = 0; i < runs.length; i += API_CONFIG.BATCH_SIZE) {
-        const batch = runs.slice(i, i + API_CONFIG.BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map((id) => deleteRunById(id))
-        );
-
-        const batchSucceeded = results.filter(
-          (result) => result.status === "fulfilled"
-        ).length;
-        succeeded += batchSucceeded;
-        failed += results.length - batchSucceeded;
-
-        if (circuitBreaker.getState() === CircuitState.OPEN) {
-          logger.warn("Circuit breaker OPEN - stopping further deletions");
-          failed += runs.length - (i + batch.length);
-          break;
-        }
-
-        // Pace between batches rather than inside each concurrent task: a
-        // per-task delay in deleteRunById overlapped across the whole batch
-        // and had no effect on real throughput. mode.paceBatch is a no-op
-        // for dry runs (no API calls made) and skipped after the final
-        // batch (nothing left to pace).
-        const hasMoreBatches = i + batch.length < runs.length;
-        if (hasMoreBatches) {
-          await mode.paceBatch(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
-        }
+    // Recursive instead of a for-loop: each step threads succeeded/failed
+    // forward as arguments rather than mutating outer `let`s, and the
+    // circuit-breaker-open case is a direct early return instead of a
+    // break plus a follow-up index calculation.
+    async function processBatches(
+      batches: number[][],
+      index: number,
+      succeeded: number,
+      failed: number
+    ): Promise<DeletionResult> {
+      if (index >= batches.length) {
+        return { succeeded, failed };
       }
 
-      return { failed, succeeded };
+      const batch = batches[index];
+      const results = await Promise.allSettled(
+        batch.map((id) => deleteRunById(id))
+      );
+
+      const batchSucceeded = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length;
+      const newSucceeded = succeeded + batchSucceeded;
+      const newFailed = failed + (results.length - batchSucceeded);
+
+      if (circuitBreaker.getState() === CircuitState.OPEN) {
+        logger.warn("Circuit breaker OPEN - stopping further deletions");
+        const remainingRuns = batches.slice(index + 1).flat().length;
+        return { succeeded: newSucceeded, failed: newFailed + remainingRuns };
+      }
+
+      // Pace between batches rather than inside each concurrent task: a
+      // per-task delay in deleteRunById overlapped across the whole batch
+      // and had no effect on real throughput. mode.paceBatch is a no-op
+      // for dry runs (no API calls made) and skipped after the final
+      // batch (nothing left to pace).
+      const hasMoreBatches = index + 1 < batches.length;
+      if (hasMoreBatches) {
+        await mode.paceBatch(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
+      }
+
+      return processBatches(batches, index + 1, newSucceeded, newFailed);
+    }
+
+    async function deleteRuns(runs: number[]): Promise<DeletionResult> {
+      return processBatches(chunk(runs, API_CONFIG.BATCH_SIZE), 0, 0, 0);
     }
 
     async function getWorkflowRuns(

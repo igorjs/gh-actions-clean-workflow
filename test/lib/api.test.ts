@@ -209,6 +209,21 @@ describe("api", () => {
         expect(api.getMetrics().circuitBreakerTrips).toBe(1);
       }
     );
+
+    it("should complete without a stack overflow across 5000 runs (250 batches)", async () => {
+      // deleteRuns processes batches via recursion (processBatches), not a
+      // for-loop; each step is only reached after its predecessor's
+      // Promise.allSettled/paceBatch await resolves, so this proves the
+      // recursion doesn't grow the call stack proportionally to batch count.
+      const deps = makeTestDeps();
+      const api = makeApi(deps)(BASE_PARAMS);
+      const runIds = Array.from({ length: 5000 }, (_, i) => i + 1);
+      const result = await api.deleteRuns(runIds);
+
+      expect(result.succeeded).toBe(5000);
+      expect(result.failed).toBe(0);
+      expect(deps.mockDeleteWorkflowRun).toHaveBeenCalledTimes(5000);
+    });
   });
 
   describe("getRunsToDelete", () => {
