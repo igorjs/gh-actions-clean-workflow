@@ -11,6 +11,7 @@ import type {
 } from "#src/config/types";
 import { computeRunsToDelete } from "#src/core/api";
 import { createCircuitBreaker } from "./circuit-breaker";
+import { createDeletionMode } from "./deletion-mode";
 import * as logger from "./logger";
 import { makeRetry } from "./retry";
 
@@ -22,6 +23,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
     const octokit = getOctokit(token);
     const circuitBreaker = createCircuitBreaker({ now });
     const withRetry = makeRetry({ sleep });
+    const mode = createDeletionMode(dryRun, sleep);
 
     const metrics: ApiMetrics = {
       totalRequests: 0,
@@ -39,35 +41,28 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
         );
       }
 
-      if (dryRun) {
-        logger.dryRun(`Would delete run #${id}`);
-        // Deliberate delay, not an oversight: no API call happens here, but
-        // keeping the pacing gives users previewing a dry run a realistic
-        // sense of how long the real deletion run will take.
-        await sleep(100);
-        return;
-      }
-
-      try {
-        logger.info(`Deleting run #${id}`);
-        await withRetry(
-          () =>
-            octokit.rest.actions.deleteWorkflowRun({
-              owner,
-              repo,
-              run_id: id,
-            }),
-          `delete run #${id}`,
-          metrics,
-          circuitBreaker
-        );
-        logger.success(`Run #${id} was deleted`);
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error";
-        logger.error(`Failed to delete run #${id}: ${errorMessage}`);
-        throw err;
-      }
+      await mode.execute(id, async () => {
+        try {
+          logger.info(`Deleting run #${id}`);
+          await withRetry(
+            () =>
+              octokit.rest.actions.deleteWorkflowRun({
+                owner,
+                repo,
+                run_id: id,
+              }),
+            `delete run #${id}`,
+            metrics,
+            circuitBreaker
+          );
+          logger.success(`Run #${id} was deleted`);
+        } catch (err) {
+          const errorMessage =
+            err instanceof Error ? err.message : "Unknown error";
+          logger.error(`Failed to delete run #${id}: ${errorMessage}`);
+          throw err;
+        }
+      });
     }
 
     async function deleteRuns(runs: number[]): Promise<DeletionResult> {
@@ -94,11 +89,12 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
 
         // Pace between batches rather than inside each concurrent task: a
         // per-task delay in deleteRunById overlapped across the whole batch
-        // and had no effect on real throughput. Skipped for dry runs (no
-        // API calls made) and after the final batch (nothing left to pace).
+        // and had no effect on real throughput. mode.paceBatch is a no-op
+        // for dry runs (no API calls made) and skipped after the final
+        // batch (nothing left to pace).
         const hasMoreBatches = i + batch.length < runs.length;
-        if (!dryRun && hasMoreBatches) {
-          await sleep(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
+        if (hasMoreBatches) {
+          await mode.paceBatch(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
         }
       }
 

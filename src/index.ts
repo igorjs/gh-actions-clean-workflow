@@ -11,6 +11,7 @@ import {
 import { makeApi } from "#src/lib/api";
 import * as logger from "#src/lib/logger";
 import { makeParams } from "#src/lib/params";
+import { createRunReporter, type RunReporter } from "#src/lib/run-reporter";
 
 const ZERO_METRICS: ApiMetrics = {
   totalRequests: 0,
@@ -37,12 +38,12 @@ function exportMetrics(
 function logWorkflowStats(
   workflowStats: Map<number, WorkflowStats>,
   runsToKeep: number,
-  dryRun: boolean
+  actionVerb: string
 ): void {
   for (const msg of computeWorkflowStatsMessages(
     workflowStats,
     runsToKeep,
-    dryRun
+    actionVerb
   ))
     logger.info(msg);
 }
@@ -67,8 +68,9 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
     const olderThanDays = params.getRunsOlderThan();
     const dryRun = params.getDryRun();
     const workflowNames = params.getWorkflowNames();
+    const reporter: RunReporter = createRunReporter(dryRun);
 
-    if (dryRun) logger.info("DRY RUN MODE - No runs will be actually deleted");
+    reporter.announce();
     if (workflowNames.length > 0)
       logger.info(`Filtering by workflows: ${workflowNames.join(", ")}`);
 
@@ -90,17 +92,19 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
       return;
     }
 
-    logWorkflowStats(workflowStats, runsToKeep, dryRun);
+    logWorkflowStats(
+      workflowStats,
+      runsToKeep,
+      reporter.describeWorkflowAction()
+    );
 
-    const action = dryRun ? "Would delete" : "Deleting";
     logger.info(
-      `${action} ${runIds.length} total runs across all workflows...`
+      `${reporter.describeBatchAction()} ${runIds.length} total runs across all workflows...`
     );
 
     const { failed, succeeded } = await api.deleteRuns(runIds);
 
-    if (dryRun) logger.dryRun(`Would have deleted ${succeeded} runs`);
-    else logger.success(`Deleted ${succeeded} runs`);
+    reporter.reportOutcome(succeeded);
 
     if (failed > 0) logger.warn(`Failed to delete ${failed} runs`);
 
@@ -108,7 +112,7 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
     logger.metrics(metrics);
     exportMetrics(totalRuns, succeeded, failed, metrics, setOut);
 
-    if (failed > 0 && !dryRun) {
+    if (reporter.shouldFailOnErrors(failed)) {
       fail(
         `Failed to delete ${failed} out of ${runIds.length} runs. Check logs for details.`
       );
