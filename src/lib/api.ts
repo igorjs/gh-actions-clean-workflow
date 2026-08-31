@@ -15,6 +15,22 @@ import { createDeletionMode } from "./deletion-mode";
 import * as logger from "./logger";
 import { makeRetry } from "./retry";
 
+// Closes over nothing, so it's declared once at module scope instead of as
+// an inline arrow rebuilt on every getWorkflowRuns call.
+function toWorkflowRun(run: {
+  id: number;
+  workflow_id: number;
+  created_at: string;
+  name?: string | null;
+}): WorkflowRun {
+  return {
+    id: run.id,
+    workflow_id: run.workflow_id,
+    created_at: run.created_at,
+    name: run.name || "",
+  };
+}
+
 export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
   const { getOctokit, sleep, now } = deps;
 
@@ -123,17 +139,15 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
           ...(created && { created }),
         }
       )) {
-        for (const run of response.data) {
-          const workflowName = run.name || "";
-          if (workflowNames.length > 0 && !workflowNames.includes(workflowName))
-            continue;
-          runs.push({
-            id: run.id,
-            workflow_id: run.workflow_id,
-            created_at: run.created_at,
-            name: workflowName,
-          });
-        }
+        runs.push(
+          ...response.data
+            .filter(
+              (run) =>
+                workflowNames.length === 0 ||
+                workflowNames.includes(run.name || "")
+            )
+            .map(toWorkflowRun)
+        );
       }
 
       return runs;
