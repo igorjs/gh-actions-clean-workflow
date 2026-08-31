@@ -18,6 +18,19 @@ import {
 } from "#src/core/retry";
 import * as logger from "./logger";
 
+// Merges a pure record* function's returned patch back onto the caller's
+// live metrics object. Every call site needs the same two-step "compute
+// purely, then merge onto the shared object" dance, since the pure functions
+// in #src/core/retry never mutate their input; factoring it out here also
+// removes the chance of a call site assigning the result to a new local
+// instead of merging it, which would silently drop the update.
+function apply(
+  metrics: ApiMetrics,
+  fn: (metrics: ApiMetrics) => ApiMetrics
+): void {
+  Object.assign(metrics, fn(metrics));
+}
+
 // Bundles the pure metrics update with the effectful circuit-breaker call so
 // every call site that gives up on an operation records both signals
 // together, instead of relying on callers to remember both steps.
@@ -25,7 +38,7 @@ function recordFailure(
   metrics: ApiMetrics,
   circuitBreaker: CircuitBreakerHandle
 ): void {
-  Object.assign(metrics, recordRequestFailed(metrics));
+  apply(metrics, recordRequestFailed);
   circuitBreaker.recordFailure();
 }
 
@@ -41,14 +54,14 @@ export function makeRetry(deps: RetryDeps) {
     operationName: string,
     metrics: ApiMetrics
   ): Promise<void> {
-    Object.assign(metrics, recordRateLimitHit(metrics));
+    apply(metrics, recordRateLimitHit);
     const retryAfter = error.response?.headers?.["retry-after"];
     const waitTime = retryAfter
       ? parseInt(retryAfter, 10) * 1000
       : API_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS;
     logger.warn(`Rate limit hit for ${operationName}, waiting ${waitTime}ms`);
     await sleep(waitTime);
-    Object.assign(metrics, recordRetryScheduled(metrics));
+    apply(metrics, recordRetryScheduled);
   }
 
   // Exponential backoff capped at MAX_RETRY_DELAY_MS so a long run of
@@ -69,7 +82,7 @@ export function makeRetry(deps: RetryDeps) {
       }), retrying in ${delay}ms: ${error.message}`
     );
     await sleep(delay);
-    Object.assign(metrics, recordRetryScheduled(metrics));
+    apply(metrics, recordRetryScheduled);
   }
 
   // Shell around the pure classification and metrics functions from
@@ -86,9 +99,9 @@ export function makeRetry(deps: RetryDeps) {
 
     for (let attempt = 0; attempt <= API_CONFIG.MAX_RETRIES; attempt++) {
       try {
-        Object.assign(metrics, recordAttempt(metrics));
+        apply(metrics, recordAttempt);
         const result = await operation();
-        Object.assign(metrics, recordSuccess(metrics));
+        apply(metrics, recordSuccess);
         circuitBreaker.recordSuccess();
         return result;
       } catch (err) {
