@@ -22,6 +22,8 @@ No project-specific code style rules beyond the baseline. See [.github/CONTRIBUT
 
 This project uses Node's native subpath imports for local imports that cross a folder boundary: `#src/*` resolves to `src/*.ts`, `#test/*` resolves to `test/*.ts` (the alias only covers `.ts` files today; see the `imports` field in `package.json`). An import between files in the same folder stays a relative import (e.g. `./logger`); only cross-folder imports use the `#src/*`/`#test/*` alias.
 
+Logic is split between `src/core/` and `src/lib/` by purity. `src/core/` holds pure functions only: no I/O, no mutation of anything outside their own return value, directly unit-testable with plain inputs/outputs and no mocks needed. `src/lib/` holds the impure shells: factories, network calls (via `@actions/github`), logging, env/input reads (via `@actions/core`), and orchestration, each delegating its business logic to the matching `src/core/` module. `circuit-breaker.ts`, `retry.ts`, `params.ts`, `api.ts`, and `logger.ts` each have both a `src/core/*.ts` counterpart and a `src/lib/*.ts` counterpart; for example, `src/core/circuit-breaker.ts`'s `applySuccess`/`applyFailure`/`checkExecutability` pure state transitions versus `src/lib/circuit-breaker.ts`'s stateful `createCircuitBreaker` shell that wraps them.
+
 ## Tests
 
 ### Common commands
