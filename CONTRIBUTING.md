@@ -46,6 +46,11 @@ A second, non-coverage-gated suite lives under `test/e2e/`: a local mock GitHub 
 
 - Run `pnpm run all` locally (lint, typecheck, tests, build)
 - If you touched `test/e2e/` or any `#test/*` import target, also run `pnpm run test:e2e` locally: its CI job doesn't yet gate merges
+- If your change affects users (a new input/output, a behavior change, a bug fix), run `pnpm changeset` and commit the generated file under `.changeset/`. Pick `patch` for a bug fix, `minor` for a backward-compatible addition, `major` for a breaking change. Internal-only changes (refactors, tests, docs, CI) don't need one.
 - Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
 
 (DCO / commit signing requirements are already covered by [.github/CONTRIBUTING-RULES.md](.github/CONTRIBUTING-RULES.md)'s baseline; not repeated here.)
+
+## Releasing
+
+Releases are automated with [Changesets](https://github.com/changesets/changesets). Merging a PR that carries a changeset updates (or opens) a "chore: version packages" pull request on `main`, aggregating every pending changeset into a version bump and a `CHANGELOG.md` entry. Merging that PR tags the new version (e.g. `v8.1.0`) and moves the floating major tag (e.g. `v8`) to point at it; no manual tagging needed. The `.changeset/config.json` and release workflow are managed centrally (see the file header comments); don't hand-edit them here.
