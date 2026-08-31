@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { ApiMetrics } from "#src/config/types";
+import { computeOutputs } from "#src/core/reporting";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -35,7 +37,6 @@ describe("action.yml contract", () => {
     resolve(ROOT, "src", "lib", "params.ts"),
     "utf8"
   );
-  const indexSrc = readFileSync(resolve(ROOT, "src", "index.ts"), "utf8");
 
   const declaredInputs = extractManifestKeys(actionYml, "inputs");
   const declaredOutputs = extractManifestKeys(actionYml, "outputs");
@@ -45,10 +46,23 @@ describe("action.yml contract", () => {
       (m) => m[1]
     )
   );
+
+  // exportMetrics in src/index.ts delegates to computeOutputs for the
+  // key/value mapping, so the output keys no longer appear as literal
+  // setOut(...) calls in index.ts's source text. Calling computeOutputs
+  // directly and inspecting its returned keys is a more robust contract
+  // check: it survives future refactors of how exportMetrics wires the
+  // mapping into setOutput.
+  const zeroMetrics: ApiMetrics = {
+    totalRequests: 0,
+    successfulRequests: 0,
+    failedRequests: 0,
+    retries: 0,
+    rateLimitHits: 0,
+    circuitBreakerTrips: 0,
+  };
   const writtenOutputs = new Set(
-    [...indexSrc.matchAll(/setOut\(\s*["']([a-zA-Z0-9-]+)["']/g)].map(
-      (m) => m[1]
-    )
+    Object.keys(computeOutputs(0, 0, 0, zeroMetrics))
   );
 
   it("declares at least one input and one output (parsing sanity check)", () => {

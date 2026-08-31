@@ -4,6 +4,8 @@
  */
 
 import { LOG_PREFIX } from "#src/config/constants";
+import type { ApiMetrics } from "#src/config/types";
+import { formatMetricsLines } from "#src/core/logger";
 
 /**
  * Log informational message
@@ -43,20 +45,6 @@ export function dryRun(message: string): void {
 /**
  * Log API metrics summary
  */
-export function metrics(metrics: {
-  totalRequests: number;
-  successfulRequests: number;
-  failedRequests: number;
-  retries: number;
-  rateLimitHits: number;
-  circuitBreakerTrips: number;
-}): void {
-  info("=== API Metrics ===");
-  info(`Total API requests: ${metrics.totalRequests}`);
-  info(`Successful requests: ${metrics.successfulRequests}`);
-  info(`Failed requests: ${metrics.failedRequests}`);
-  info(`Retry attempts: ${metrics.retries}`);
-  info(`Rate limit hits: ${metrics.rateLimitHits}`);
-  info(`Circuit breaker trips: ${metrics.circuitBreakerTrips}`);
-  info("==================");
+export function metrics(m: ApiMetrics): void {
+  for (const line of formatMetricsLines(m)) info(line);
 }
