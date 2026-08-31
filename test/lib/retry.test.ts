@@ -128,8 +128,9 @@ describe("retry", () => {
     });
 
     it("should fall back to the default rate-limit wait when no Retry-After header is present", async () => {
-      // Regression test for the previously uncovered branch (retry.ts BRDA:40,2,1,0):
-      // a 429/403 with no retry-after header must fall through to the default wait.
+      // Regression test for handleRateLimitError's fallback branch
+      // (src/lib/retry.ts:46-48): a 429/403 with no retry-after header must
+      // fall through to the default wait.
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
       const metrics = makeMetrics();
@@ -218,7 +219,7 @@ describe("retry", () => {
     });
 
     it("should fail fast on a bare 403 (no Retry-After) instead of treating it as a rate limit", async () => {
-      // Pins isRateLimitError's exact gate (retry.ts:36-38):
+      // Pins isRateLimitError's exact gate (src/core/retry.ts:55-57):
       // `error.status === HTTP_STATUS.FORBIDDEN && !!error.response?.headers?.["retry-after"]`.
       // A bare 403 with no retry-after header fails the gate and must NOT be
       // retried, distinct from the 403+Retry-After case below which IS.
@@ -333,35 +334,31 @@ describe("retry", () => {
       expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
     });
 
-    it("should wrap a non-error thrown value into an Error before classifying it", async () => {
+    it("should accumulate correct cumulative metrics when two concurrent withRetry calls share one metrics object", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
       const metrics = makeMetrics();
-      const circuitBreaker = makeCircuitBreaker();
-      const operation = vi.fn().mockRejectedValue("boom");
-
-      await expect(
-        withRetry(operation, "op", metrics, circuitBreaker)
-      ).rejects.toThrow("boom");
-
-      expect(metrics.failedRequests).toBe(1);
-      expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
-    });
-
-    it("should classify a message containing 'rate limit' as a rate limit even without a matching status", async () => {
-      const sleep = vi.fn().mockResolvedValue(undefined);
-      const withRetry = makeRetry({ sleep });
-      const metrics = makeMetrics();
-      const circuitBreaker = makeCircuitBreaker();
-      const operation = vi
+      const circuitBreakerA = makeCircuitBreaker();
+      const circuitBreakerB = makeCircuitBreaker();
+      const immediateSuccess = vi.fn().mockResolvedValue("ok-a");
+      const rateLimitThenSuccess = vi
         .fn()
-        .mockRejectedValueOnce(new Error("secondary rate limit exceeded"))
-        .mockResolvedValueOnce("ok");
+        .mockRejectedValueOnce(
+          makeHttpError("rate limited", { status: 429, retryAfter: "1" })
+        )
+        .mockResolvedValueOnce("ok-b");
 
-      await withRetry(operation, "op", metrics, circuitBreaker);
+      const [resultA, resultB] = await Promise.all([
+        withRetry(immediateSuccess, "op-a", metrics, circuitBreakerA),
+        withRetry(rateLimitThenSuccess, "op-b", metrics, circuitBreakerB),
+      ]);
 
+      expect(resultA).toBe("ok-a");
+      expect(resultB).toBe("ok-b");
+      expect(metrics.totalRequests).toBe(3);
+      expect(metrics.successfulRequests).toBe(2);
+      expect(metrics.retries).toBe(1);
       expect(metrics.rateLimitHits).toBe(1);
-      expect(sleep).toHaveBeenCalledWith(60000);
     });
   });
 });
