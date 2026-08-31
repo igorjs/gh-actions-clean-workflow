@@ -27,9 +27,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build",
-    "changeset": "changeset",
-    "version": "changeset version"
+    "all": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "keywords": [
     "GitHub",
@@ -44,8 +42,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",
-    "@changesets/changelog-github": "1.0.0",
-    "@changesets/cli": "3.0.1",
     "@types/node": "^26.4.0",
     "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "^0.28.2",
