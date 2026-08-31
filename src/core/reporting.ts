@@ -23,6 +23,12 @@ export function computeOutputs(
   };
 }
 
+// Closes over nothing, so it's declared once at module scope instead of as
+// an inline arrow rebuilt on every computeWorkflowStatsMessages call.
+function hasRunsToDelete([, stats]: [number, WorkflowStats]): boolean {
+  return stats.toDelete > 0;
+}
+
 // Pure counterpart to `logWorkflowStats` in `src/index.ts`: returns message
 // strings instead of calling `logger.info` directly, so the filtering and
 // formatting logic can be tested without capturing console output.
@@ -31,19 +37,16 @@ export function computeWorkflowStatsMessages(
   runsToKeep: number,
   actionVerb: string
 ): string[] {
-  const messages: string[] = [];
-
-  if (runsToKeep > 0 && workflowStats.size > 0) {
-    for (const [workflowId, stats] of workflowStats) {
-      if (stats.toDelete > 0) {
-        messages.push(
-          `Workflow ${workflowId}: keeping ${
-            stats.total - stats.toDelete
-          } runs, ${actionVerb} ${stats.toDelete} runs`
-        );
-      }
-    }
+  if (runsToKeep <= 0 || workflowStats.size === 0) {
+    return [];
   }
 
-  return messages;
+  return [...workflowStats.entries()]
+    .filter(hasRunsToDelete)
+    .map(
+      ([workflowId, stats]) =>
+        `Workflow ${workflowId}: keeping ${
+          stats.total - stats.toDelete
+        } runs, ${actionVerb} ${stats.toDelete} runs`
+    );
 }
