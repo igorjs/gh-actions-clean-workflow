@@ -192,6 +192,10 @@ describe("parseRunsToKeep", () => {
     );
   });
 
+  it("should accept the maximum allowed value", () => {
+    expect(parseRunsToKeep("10000")).toBe(10000);
+  });
+
   it("should throw for value above max", () => {
     expect(() => parseRunsToKeep("10001")).toThrow(
       "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000"
@@ -218,6 +222,10 @@ describe("parseRunsOlderThan", () => {
     expect(() => parseRunsOlderThan("abc")).toThrow(
       "[Invalid Parameter] <runs_older_than> must be a valid integer"
     );
+  });
+
+  it("should accept the maximum allowed value", () => {
+    expect(parseRunsOlderThan("3650")).toBe(3650);
   });
 
   it("should throw for value above max", () => {
