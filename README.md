@@ -12,7 +12,7 @@
 
 GitHub Actions histories grow without bounds. Scheduled jobs, PR checks, and matrix builds can leave a repo with thousands of runs a year, cluttering the Actions tab and eating into your plan's storage. This action prunes the old ones on a schedule you control, with retries, rate-limit pacing, and a circuit breaker so a flaky API call doesn't leave you with a half-finished cleanup.
 
-If this saves your team Actions minutes and storage, a ⭐ on the repo helps other teams find it too.
+If this keeps your Actions tab clean and your storage quota in check, a ⭐ on the repo helps other teams find it too.
 
 ## Quick start
 
