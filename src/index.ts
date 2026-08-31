@@ -3,7 +3,7 @@ import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
-import type { Api, ApiMetrics, RunEnv } from "#src/config/types";
+import type { Api, ApiMetrics, RunEnv, WorkflowStats } from "#src/config/types";
 import {
   computeOutputs,
   computeWorkflowStatsMessages,
@@ -35,7 +35,7 @@ function exportMetrics(
 }
 
 function logWorkflowStats(
-  workflowStats: Map<number, { total: number; toDelete: number }>,
+  workflowStats: Map<number, WorkflowStats>,
   runsToKeep: number,
   dryRun: boolean
 ): void {

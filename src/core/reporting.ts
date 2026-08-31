@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import type { ApiMetrics } from "#src/config/types";
+import type { ApiMetrics, WorkflowStats } from "#src/config/types";
 
 // Pure counterpart to `exportMetrics` in `src/index.ts`: returns the output
 // key/value pairs instead of calling `setOutput` directly, so the mapping
@@ -27,7 +27,7 @@ export function computeOutputs(
 // strings instead of calling `logger.info` directly, so the filtering and
 // formatting logic can be tested without capturing console output.
 export function computeWorkflowStatsMessages(
-  workflowStats: Map<number, { total: number; toDelete: number }>,
+  workflowStats: Map<number, WorkflowStats>,
   runsToKeep: number,
   dryRun: boolean
 ): string[] {
