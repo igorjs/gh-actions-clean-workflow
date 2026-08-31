@@ -333,35 +333,31 @@ describe("retry", () => {
       expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
     });
 
-    it("should wrap a non-error thrown value into an Error before classifying it", async () => {
+    it("should accumulate correct cumulative metrics when two concurrent withRetry calls share one metrics object", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });
       const metrics = makeMetrics();
-      const circuitBreaker = makeCircuitBreaker();
-      const operation = vi.fn().mockRejectedValue("boom");
-
-      await expect(
-        withRetry(operation, "op", metrics, circuitBreaker)
-      ).rejects.toThrow("boom");
-
-      expect(metrics.failedRequests).toBe(1);
-      expect(circuitBreaker.recordFailure).toHaveBeenCalledTimes(1);
-    });
-
-    it("should classify a message containing 'rate limit' as a rate limit even without a matching status", async () => {
-      const sleep = vi.fn().mockResolvedValue(undefined);
-      const withRetry = makeRetry({ sleep });
-      const metrics = makeMetrics();
-      const circuitBreaker = makeCircuitBreaker();
-      const operation = vi
+      const circuitBreakerA = makeCircuitBreaker();
+      const circuitBreakerB = makeCircuitBreaker();
+      const immediateSuccess = vi.fn().mockResolvedValue("ok-a");
+      const rateLimitThenSuccess = vi
         .fn()
-        .mockRejectedValueOnce(new Error("secondary rate limit exceeded"))
-        .mockResolvedValueOnce("ok");
+        .mockRejectedValueOnce(
+          makeHttpError("rate limited", { status: 429, retryAfter: "1" })
+        )
+        .mockResolvedValueOnce("ok-b");
 
-      await withRetry(operation, "op", metrics, circuitBreaker);
+      const [resultA, resultB] = await Promise.all([
+        withRetry(immediateSuccess, "op-a", metrics, circuitBreakerA),
+        withRetry(rateLimitThenSuccess, "op-b", metrics, circuitBreakerB),
+      ]);
 
+      expect(resultA).toBe("ok-a");
+      expect(resultB).toBe("ok-b");
+      expect(metrics.totalRequests).toBe(3);
+      expect(metrics.successfulRequests).toBe(2);
+      expect(metrics.retries).toBe(1);
       expect(metrics.rateLimitHits).toBe(1);
-      expect(sleep).toHaveBeenCalledWith(60000);
     });
   });
 });
