@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
-import { setTimeout as nodeSetTimeout } from "node:timers/promises";
-import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
-import { getOctokit } from "@actions/github";
-import { type Api, type ApiParams, makeApi } from "#src/lib/api";
+import type { Api } from "#src/lib/api";
+import { makeDefaultEnv, type RunEnv } from "#src/lib/env";
 import * as logger from "#src/lib/logger";
-import { makeParams, type Params } from "#src/lib/params";
 import {
   exportMetrics,
   logWorkflowStats,
@@ -12,24 +9,8 @@ import {
 } from "#src/lib/reporting";
 import { createRunReporter, type RunReporter } from "#src/lib/run-reporter";
 
-export type RunEnv = {
-  params: Params;
-  getApi: (params: ApiParams) => Api;
-  setFailed: (msg: string) => void;
-  setOutput: (name: string, value: string) => void;
-};
-
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-function makeDefaultEnv(): RunEnv {
-  return {
-    params: makeParams({ getInput, setSecret }),
-    getApi: makeApi({ getOctokit, sleep: nodeSetTimeout, now: Date.now }),
-    setFailed,
-    setOutput,
-  };
 }
 
 export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
