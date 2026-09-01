@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULTS,
+  ERROR_MESSAGES,
   parseDryRun,
   parseOwner,
   parseRepo,
@@ -8,6 +10,7 @@ import {
   parseRunsToKeep,
   parseToken,
   parseWorkflowNames,
+  VALIDATION_RULES,
 } from "#src/core/params";
 
 describe("parseToken", () => {
@@ -63,14 +66,12 @@ describe("parseToken", () => {
   });
 
   it("should throw error when token is empty", () => {
-    expect(() => parseToken("")).toThrow(
-      "[Invalid Parameter] <token> must be provided"
-    );
+    expect(() => parseToken("")).toThrow(ERROR_MESSAGES.INVALID_TOKEN);
   });
 
   it("should throw error when token has invalid format", () => {
     expect(() => parseToken("invalid_token_123")).toThrow(
-      "[Invalid Parameter] <token> must be a valid GitHub token"
+      ERROR_MESSAGES.INVALID_TOKEN_FORMAT
     );
   });
 });
@@ -90,25 +91,25 @@ describe("parseOwner", () => {
 
   it("should throw error for owner starting with hyphen", () => {
     expect(() => parseOwner("-invalid", undefined)).toThrow(
-      "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      ERROR_MESSAGES.INVALID_OWNER_FORMAT
     );
   });
 
   it("should throw error for owner ending with hyphen", () => {
     expect(() => parseOwner("invalid-", undefined)).toThrow(
-      "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      ERROR_MESSAGES.INVALID_OWNER_FORMAT
     );
   });
 
   it("should throw error for owner with special characters", () => {
     expect(() => parseOwner("invalid@user", undefined)).toThrow(
-      "[Invalid Parameter] <owner> must be a valid GitHub username or organization"
+      ERROR_MESSAGES.INVALID_OWNER_FORMAT
     );
   });
 
   it("should throw error when owner is empty and no env var", () => {
     expect(() => parseOwner("", undefined)).toThrow(
-      "[Invalid Parameter] <owner> must be provided"
+      ERROR_MESSAGES.INVALID_OWNER
     );
   });
 
@@ -136,20 +137,18 @@ describe("parseRepo", () => {
 
   it("should throw error for repo with spaces", () => {
     expect(() => parseRepo("", "owner/invalid repo")).toThrow(
-      "[Invalid Parameter] <repo> must be a valid GitHub repository name"
+      ERROR_MESSAGES.INVALID_REPO_FORMAT
     );
   });
 
   it("should throw error for repo with special characters", () => {
     expect(() => parseRepo("", "owner/invalid@repo")).toThrow(
-      "[Invalid Parameter] <repo> must be a valid GitHub repository name"
+      ERROR_MESSAGES.INVALID_REPO_FORMAT
     );
   });
 
   it("should throw error when repo is empty and no env var", () => {
-    expect(() => parseRepo("", undefined)).toThrow(
-      "[Invalid Parameter] <repo> must be provided"
-    );
+    expect(() => parseRepo("", undefined)).toThrow(ERROR_MESSAGES.INVALID_REPO);
   });
 
   it("should extract repo name from an owner/repo input (matches the github.repository default)", () => {
@@ -163,7 +162,7 @@ describe("parseRepo", () => {
 
 describe("parseRunsToKeep", () => {
   it("should return default when empty", () => {
-    expect(parseRunsToKeep("")).toBe(0);
+    expect(parseRunsToKeep("")).toBe(DEFAULTS.RUNS_TO_KEEP);
   });
 
   it("should return parsed integer", () => {
@@ -176,36 +175,38 @@ describe("parseRunsToKeep", () => {
 
   it("should throw for negative value", () => {
     expect(() => parseRunsToKeep("-1")).toThrow(
-      "[Invalid Parameter] <runs_to_keep> must be non-negative"
+      ERROR_MESSAGES.INVALID_RUNS_TO_KEEP_NEGATIVE
     );
   });
 
   it("should throw for non-integer", () => {
     expect(() => parseRunsToKeep("abc")).toThrow(
-      "[Invalid Parameter] <runs_to_keep> must be a valid integer"
+      ERROR_MESSAGES.INVALID_RUNS_TO_KEEP
     );
   });
 
   it("should throw for float", () => {
     expect(() => parseRunsToKeep("1.5")).toThrow(
-      "[Invalid Parameter] <runs_to_keep> must be a valid integer"
+      ERROR_MESSAGES.INVALID_RUNS_TO_KEEP
     );
   });
 
   it("should accept the maximum allowed value", () => {
-    expect(parseRunsToKeep("10000")).toBe(10000);
+    expect(parseRunsToKeep(VALIDATION_RULES.MAX_RUNS_TO_KEEP.toString())).toBe(
+      VALIDATION_RULES.MAX_RUNS_TO_KEEP
+    );
   });
 
   it("should throw for value above max", () => {
-    expect(() => parseRunsToKeep("10001")).toThrow(
-      "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000"
-    );
+    expect(() =>
+      parseRunsToKeep((VALIDATION_RULES.MAX_RUNS_TO_KEEP + 1).toString())
+    ).toThrow(ERROR_MESSAGES.INVALID_RUNS_TO_KEEP_MAX);
   });
 });
 
 describe("parseRunsOlderThan", () => {
   it("should return default when empty", () => {
-    expect(parseRunsOlderThan("")).toBe(7);
+    expect(parseRunsOlderThan("")).toBe(DEFAULTS.RUNS_OLDER_THAN);
   });
 
   it("should return parsed integer", () => {
@@ -214,30 +215,32 @@ describe("parseRunsOlderThan", () => {
 
   it("should throw for negative value", () => {
     expect(() => parseRunsOlderThan("-1")).toThrow(
-      "[Invalid Parameter] <runs_older_than> must be non-negative"
+      ERROR_MESSAGES.INVALID_RUNS_OLDER_THAN_NEGATIVE
     );
   });
 
   it("should throw for non-integer", () => {
     expect(() => parseRunsOlderThan("abc")).toThrow(
-      "[Invalid Parameter] <runs_older_than> must be a valid integer"
+      ERROR_MESSAGES.INVALID_RUNS_OLDER_THAN
     );
   });
 
   it("should accept the maximum allowed value", () => {
-    expect(parseRunsOlderThan("3650")).toBe(3650);
+    expect(parseRunsOlderThan(VALIDATION_RULES.MAX_DAYS_OLD.toString())).toBe(
+      VALIDATION_RULES.MAX_DAYS_OLD
+    );
   });
 
   it("should throw for value above max", () => {
-    expect(() => parseRunsOlderThan("3651")).toThrow(
-      "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days"
-    );
+    expect(() =>
+      parseRunsOlderThan((VALIDATION_RULES.MAX_DAYS_OLD + 1).toString())
+    ).toThrow(ERROR_MESSAGES.INVALID_RUNS_OLDER_THAN_MAX);
   });
 });
 
 describe("parseDryRun", () => {
   it("should return false as default when empty", () => {
-    expect(parseDryRun("")).toBe(false);
+    expect(parseDryRun("")).toBe(DEFAULTS.DRY_RUN);
   });
 
   it("should return true for 'true'", () => {
@@ -265,9 +268,7 @@ describe("parseDryRun", () => {
   });
 
   it("should throw for invalid value", () => {
-    expect(() => parseDryRun("maybe")).toThrow(
-      "[Invalid Parameter] <dry_run> must be a boolean value"
-    );
+    expect(() => parseDryRun("maybe")).toThrow(ERROR_MESSAGES.INVALID_DRY_RUN);
   });
 });
 
@@ -298,7 +299,7 @@ describe("parseWorkflowNames", () => {
 
   it("should throw for names with invalid characters", () => {
     expect(() => parseWorkflowNames("CI, Deploy@prod")).toThrow(
-      "[Invalid Parameter] <workflow_names> contains invalid characters"
+      ERROR_MESSAGES.INVALID_WORKFLOW_NAMES_FORMAT
     );
   });
 });

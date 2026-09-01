@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULTS } from "#src/core/params";
 import { makeParams } from "#src/lib/params";
 
 function makeGetInput(returnValue = "") {
@@ -109,7 +110,7 @@ describe("params", () => {
     it("should call getInput with the expected name and options and return the default when empty", () => {
       const getInput = makeGetInput("");
       const { getRunsToKeep } = makeParams({ getInput });
-      expect(getRunsToKeep()).toBe(0);
+      expect(getRunsToKeep()).toBe(DEFAULTS.RUNS_TO_KEEP);
       expect(getInput).toHaveBeenCalledWith("runs_to_keep", {
         required: false,
         trimWhitespace: true,
@@ -121,7 +122,7 @@ describe("params", () => {
     it("should call getInput with the expected name and options and return the default when empty", () => {
       const getInput = makeGetInput("");
       const { getRunsOlderThan } = makeParams({ getInput });
-      expect(getRunsOlderThan()).toBe(7);
+      expect(getRunsOlderThan()).toBe(DEFAULTS.RUNS_OLDER_THAN);
       expect(getInput).toHaveBeenCalledWith("runs_older_than", {
         required: false,
         trimWhitespace: true,
@@ -133,7 +134,7 @@ describe("params", () => {
     it("should call getInput with the expected name and options and return the default when empty", () => {
       const getInput = makeGetInput("");
       const { getDryRun } = makeParams({ getInput });
-      expect(getDryRun()).toBe(false);
+      expect(getDryRun()).toBe(DEFAULTS.DRY_RUN);
       expect(getInput).toHaveBeenCalledWith("dry_run", {
         required: false,
         trimWhitespace: true,

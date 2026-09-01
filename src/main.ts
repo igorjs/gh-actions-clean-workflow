@@ -2,16 +2,15 @@
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
-import type { WorkflowStats } from "#src/core/api";
-import {
-  computeOutputs,
-  computeWorkflowStatsMessages,
-} from "#src/core/reporting";
 import { type Api, type ApiParams, makeApi } from "#src/lib/api";
 import * as logger from "#src/lib/logger";
 import { makeParams, type Params } from "#src/lib/params";
+import {
+  exportMetrics,
+  logWorkflowStats,
+  ZERO_METRICS,
+} from "#src/lib/reporting";
 import { createRunReporter, type RunReporter } from "#src/lib/run-reporter";
-import type { ApiMetrics } from "#src/types";
 
 export type RunEnv = {
   params: Params;
@@ -19,41 +18,6 @@ export type RunEnv = {
   setFailed: (msg: string) => void;
   setOutput: (name: string, value: string) => void;
 };
-
-const ZERO_METRICS: ApiMetrics = {
-  totalRequests: 0,
-  successfulRequests: 0,
-  failedRequests: 0,
-  retries: 0,
-  rateLimitHits: 0,
-  circuitBreakerTrips: 0,
-};
-
-function exportMetrics(
-  totalRuns: number,
-  succeeded: number,
-  failed: number,
-  metrics: ApiMetrics,
-  setOut: (name: string, value: string) => void
-): void {
-  for (const [name, value] of Object.entries(
-    computeOutputs(totalRuns, succeeded, failed, metrics)
-  ))
-    setOut(name, value);
-}
-
-function logWorkflowStats(
-  workflowStats: Map<number, WorkflowStats>,
-  runsToKeep: number,
-  actionVerb: string
-): void {
-  for (const msg of computeWorkflowStatsMessages(
-    workflowStats,
-    runsToKeep,
-    actionVerb
-  ))
-    logger.info(msg);
-}
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);

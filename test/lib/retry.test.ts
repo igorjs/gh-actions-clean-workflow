@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RetryMetrics } from "#src/core/retry";
 import type { CircuitBreakerHandle } from "#src/lib/circuit-breaker";
-import { makeRetry } from "#src/lib/retry";
+import { makeRetry, RETRY_CONFIG } from "#src/lib/retry";
 import { makeHttpError } from "./api.test-helpers";
 
 function makeMetrics(): RetryMetrics {
@@ -59,7 +59,7 @@ describe("retry", () => {
       const result = await withRetry(operation, "op", metrics, circuitBreaker);
 
       expect(result).toBe("ok");
-      expect(sleep).toHaveBeenCalledWith(1000);
+      expect(sleep).toHaveBeenCalledWith(RETRY_CONFIG.INITIAL_RETRY_DELAY_MS);
       expect(metrics.retries).toBe(1);
       expect(metrics.totalRequests).toBe(2);
       expect(metrics.successfulRequests).toBe(1);
@@ -78,7 +78,10 @@ describe("retry", () => {
 
       await withRetry(operation, "op", metrics, circuitBreaker);
 
-      expect(sleep).toHaveBeenNthCalledWith(1, 1000);
+      expect(sleep).toHaveBeenNthCalledWith(
+        1,
+        RETRY_CONFIG.INITIAL_RETRY_DELAY_MS
+      );
       expect(sleep).toHaveBeenNthCalledWith(2, 2000);
       expect(metrics.retries).toBe(2);
     });
@@ -101,7 +104,10 @@ describe("retry", () => {
       const result = await withRetry(operation, "op", metrics, circuitBreaker);
 
       expect(result).toBe("ok");
-      expect(sleep).toHaveBeenNthCalledWith(1, 1000);
+      expect(sleep).toHaveBeenNthCalledWith(
+        1,
+        RETRY_CONFIG.INITIAL_RETRY_DELAY_MS
+      );
       expect(sleep).toHaveBeenNthCalledWith(2, 2000);
       expect(sleep).toHaveBeenNthCalledWith(3, 4000);
       expect(metrics.retries).toBe(3);
@@ -142,7 +148,9 @@ describe("retry", () => {
 
       await withRetry(operation, "op", metrics, circuitBreaker);
 
-      expect(sleep).toHaveBeenCalledWith(60000);
+      expect(sleep).toHaveBeenCalledWith(
+        RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS
+      );
       expect(metrics.rateLimitHits).toBe(1);
     });
 
@@ -194,9 +202,18 @@ describe("retry", () => {
       const result = await withRetry(operation, "op", metrics, circuitBreaker);
 
       expect(result).toBe("ok");
-      expect(sleep).toHaveBeenNthCalledWith(1, 60000);
-      expect(sleep).toHaveBeenNthCalledWith(2, 60000);
-      expect(sleep).toHaveBeenNthCalledWith(3, 60000);
+      expect(sleep).toHaveBeenNthCalledWith(
+        1,
+        RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS
+      );
+      expect(sleep).toHaveBeenNthCalledWith(
+        2,
+        RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS
+      );
+      expect(sleep).toHaveBeenNthCalledWith(
+        3,
+        RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS
+      );
       expect(metrics.rateLimitHits).toBe(3);
     });
 
