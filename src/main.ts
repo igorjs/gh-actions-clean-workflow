@@ -2,7 +2,6 @@
 import { setTimeout as nodeSetTimeout } from "node:timers/promises";
 import { getInput, setFailed, setOutput, setSecret } from "@actions/core";
 import { getOctokit } from "@actions/github";
-import type { ApiMetrics } from "#src/config/types";
 import type { WorkflowStats } from "#src/core/api";
 import {
   computeOutputs,
@@ -12,6 +11,7 @@ import { type Api, type ApiParams, makeApi } from "#src/lib/api";
 import * as logger from "#src/lib/logger";
 import { makeParams, type Params } from "#src/lib/params";
 import { createRunReporter, type RunReporter } from "#src/lib/run-reporter";
+import type { ApiMetrics } from "#src/types";
 
 export type RunEnv = {
   params: Params;
@@ -53,6 +53,10 @@ function logWorkflowStats(
     actionVerb
   ))
     logger.info(msg);
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 function makeDefaultEnv(): RunEnv {
@@ -125,8 +129,9 @@ export async function run(env: RunEnv = makeDefaultEnv()): Promise<void> {
       );
     }
   } catch (err) {
-    logger.error(err instanceof Error ? err.message : String(err));
+    const message = toErrorMessage(err);
+    logger.error(message);
     exportMetrics(0, 0, 0, api?.getMetrics() ?? ZERO_METRICS, setOut);
-    fail(err instanceof Error ? err.message : String(err));
+    fail(message);
   }
 }

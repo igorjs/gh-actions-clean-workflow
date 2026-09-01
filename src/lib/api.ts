@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 import type { getOctokit } from "@actions/github";
-import type { ApiMetrics, Sleep } from "#src/config/types";
 import {
   computeRunsToDelete,
   type RunsToDeleteResult,
@@ -9,6 +8,7 @@ import {
 } from "#src/core/api";
 import { CircuitState } from "#src/core/circuit-breaker";
 import type { RetryMetrics } from "#src/core/retry";
+import type { ApiMetrics, Sleep } from "#src/types";
 import { createCircuitBreaker } from "./circuit-breaker";
 import { createDeletionMode } from "./deletion-mode";
 import * as logger from "./logger";

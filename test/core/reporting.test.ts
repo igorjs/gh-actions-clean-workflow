@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import type { ApiMetrics } from "#src/config/types";
 import {
   computeOutputs,
   computeWorkflowStatsMessages,
 } from "#src/core/reporting";
+import type { ApiMetrics } from "#src/types";
 
 function makeMetrics(): ApiMetrics {
   return {

@@ -3,8 +3,8 @@
  * Standardized logging utility
  */
 
-import type { ApiMetrics } from "#src/config/types";
 import { formatMetricsLines } from "#src/core/logger";
+import type { ApiMetrics } from "#src/types";
 
 const LOG_PREFIX = {
   INFO: "INFO:",

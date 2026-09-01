@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { ApiMetrics } from "#src/config/types";
 import { computeOutputs } from "#src/core/reporting";
+import type { ApiMetrics } from "#src/types";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 

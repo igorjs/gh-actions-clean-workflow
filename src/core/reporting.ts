@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-import type { ApiMetrics } from "#src/config/types";
 import type { WorkflowStats } from "#src/core/api";
+import type { ApiMetrics } from "#src/types";
 
 // Pure counterpart to `exportMetrics` in `src/main.ts`: returns the output
 // key/value pairs instead of calling `setOutput` directly, so the mapping
