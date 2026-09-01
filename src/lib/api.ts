@@ -57,6 +57,8 @@ export const BATCH_CONFIG = {
    * safety margin under GitHub's secondary rate limits.
    */
   RATE_LIMIT_DELAY_MS: 350,
+  /** GitHub's maximum page size for listWorkflowRunsForRepo */
+  PAGE_SIZE: 100,
 } as const;
 
 // Closes over nothing, so it's declared once at module scope instead of as
@@ -200,7 +202,7 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
           owner,
           repo,
           status: "completed",
-          per_page: 100,
+          per_page: BATCH_CONFIG.PAGE_SIZE,
           ...(created && { created }),
         }
       )) {

@@ -30,14 +30,12 @@ export const ERROR_MESSAGES = {
     "[Invalid Parameter] <runs_to_keep> must be a valid integer",
   INVALID_RUNS_TO_KEEP_NEGATIVE:
     "[Invalid Parameter] <runs_to_keep> must be non-negative",
-  INVALID_RUNS_TO_KEEP_MAX:
-    "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000",
+  INVALID_RUNS_TO_KEEP_MAX: `[Invalid Parameter] <runs_to_keep> must be less than or equal to ${VALIDATION_RULES.MAX_RUNS_TO_KEEP}`,
   INVALID_RUNS_OLDER_THAN:
     "[Invalid Parameter] <runs_older_than> must be a valid integer",
   INVALID_RUNS_OLDER_THAN_NEGATIVE:
     "[Invalid Parameter] <runs_older_than> must be non-negative",
-  INVALID_RUNS_OLDER_THAN_MAX:
-    "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days",
+  INVALID_RUNS_OLDER_THAN_MAX: `[Invalid Parameter] <runs_older_than> must be less than or equal to ${VALIDATION_RULES.MAX_DAYS_OLD} days`,
   INVALID_DRY_RUN:
     "[Invalid Parameter] <dry_run> must be a boolean value (true/false, yes/no, 1/0)",
   INVALID_WORKFLOW_NAMES_FORMAT:
