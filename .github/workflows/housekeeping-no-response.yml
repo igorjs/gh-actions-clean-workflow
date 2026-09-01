@@ -7,6 +7,8 @@ on:
   schedule:
     - cron: "45 1 * * *"
 
+permissions: {}
+
 jobs:
   no-response:
     runs-on: ubuntu-latest

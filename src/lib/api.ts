@@ -103,6 +103,14 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
       rateLimitHits: 0,
     };
 
+    // Unreachable from a single deleteRuns() call: processBatches already
+    // stops dispatching further batches once it observes the breaker OPEN
+    // (see the check below), and every call within one batch is dispatched
+    // synchronously via .map() before any of them can record the failure
+    // that would trip the breaker. It's reachable if a caller invokes
+    // deleteRuns() more than once concurrently on the same Api instance
+    // (they share this circuitBreaker), so this stays as defense-in-depth
+    // for that case rather than being removed as dead code.
     async function deleteRunById(id: number): Promise<void> {
       if (!circuitBreaker.canExecute()) {
         throw new Error(

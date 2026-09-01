@@ -40,11 +40,18 @@ export function makeParams(deps: ParamsDeps): Params {
 
   function getOwner(): string {
     const value = getInput("owner", { required: false, trimWhitespace: true });
+    // Bracket notation is required here, not a style choice: tsconfig's
+    // noPropertyAccessFromIndexSignature forbids dot access on process.env's
+    // index-signature properties. Biome's useLiteralKeys rule disagrees and
+    // suggests dot notation (correctly flagged as an "unsafe" fix, since
+    // applying it breaks `tsc --noEmit`); this is an accepted, permanent
+    // warning where the two tools' rules conflict.
     return parseOwner(value, env["GITHUB_REPOSITORY_OWNER"]);
   }
 
   function getRepo(): string {
     const value = getInput("repo", { required: false, trimWhitespace: true });
+    // See the bracket-notation note on getOwner above.
     return parseRepo(value, env["GITHUB_REPOSITORY"]);
   }
 
