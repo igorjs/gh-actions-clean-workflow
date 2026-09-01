@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import type { Sleep } from "#src/config/types";
+
 import {
   HTTP_STATUS,
   type HttpError,
@@ -13,6 +13,7 @@ import {
   recordSuccess,
   toHttpError,
 } from "#src/core/retry";
+import type { Sleep } from "#src/types";
 import type { CircuitBreakerHandle } from "./circuit-breaker";
 import * as logger from "./logger";
 

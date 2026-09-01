@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import type { ApiMetrics } from "#src/config/types";
+import type { ApiMetrics } from "#src/types";
 
 // Pure counterpart to `metrics` in `src/lib/logger.ts`: returns the summary
 // as an array of lines instead of calling `info` directly, so the exact

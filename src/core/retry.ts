@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 // Only the fields retry logic owns; circuitBreakerTrips lives in the
-// composed ApiMetrics (#src/config/types) instead.
+// composed ApiMetrics (#src/types) instead.
 export interface RetryMetrics {
   totalRequests: number;
   successfulRequests: number;

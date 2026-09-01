@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import type { Sleep } from "#src/config/types";
+import type { Sleep } from "#src/types";
 import * as logger from "./logger";
 
 export interface DeletionMode {
