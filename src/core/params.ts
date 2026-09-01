@@ -1,9 +1,54 @@
 // SPDX-License-Identifier: MIT
-import {
-  DEFAULTS,
-  ERROR_MESSAGES,
-  VALIDATION_RULES,
-} from "#src/config/constants";
+
+export const VALIDATION_RULES = {
+  MAX_RUNS_TO_KEEP: 10000,
+  MAX_DAYS_OLD: 3650,
+  GITHUB_NAME_REGEX: /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
+  WORKFLOW_NAME_REGEX: /^[a-zA-Z0-9 ._-]+$/,
+  REPO_NAME_REGEX: /^[a-zA-Z0-9._-]+$/,
+  /**
+   * Regex for validating GitHub token format. Only the prefix is checked, per
+   * GitHub's 2026-04-24 guidance: the body is opaque and may be up to ~520
+   * characters (stateless ghs_ JWT format, see the 2026-05-15 changelog on the
+   * X-GitHub-Stateless-S2S-Token override header). Do not add a length or body
+   * character-class check here.
+   */
+  TOKEN_FORMAT_REGEX: /^(ghp_|ghs_|github_pat_)/,
+} as const;
+
+export const ERROR_MESSAGES = {
+  INVALID_TOKEN: "[Invalid Parameter] <token> must be provided",
+  INVALID_TOKEN_FORMAT:
+    "[Invalid Parameter] <token> must be a valid GitHub token (ghp_, ghs_, or github_pat_)",
+  INVALID_OWNER: "[Invalid Parameter] <owner> must be provided",
+  INVALID_OWNER_FORMAT:
+    "[Invalid Parameter] <owner> must be a valid GitHub username or organization",
+  INVALID_REPO: "[Invalid Parameter] <repo> must be provided",
+  INVALID_REPO_FORMAT:
+    "[Invalid Parameter] <repo> must be a valid GitHub repository name",
+  INVALID_RUNS_TO_KEEP:
+    "[Invalid Parameter] <runs_to_keep> must be a valid integer",
+  INVALID_RUNS_TO_KEEP_NEGATIVE:
+    "[Invalid Parameter] <runs_to_keep> must be non-negative",
+  INVALID_RUNS_TO_KEEP_MAX:
+    "[Invalid Parameter] <runs_to_keep> must be less than or equal to 10000",
+  INVALID_RUNS_OLDER_THAN:
+    "[Invalid Parameter] <runs_older_than> must be a valid integer",
+  INVALID_RUNS_OLDER_THAN_NEGATIVE:
+    "[Invalid Parameter] <runs_older_than> must be non-negative",
+  INVALID_RUNS_OLDER_THAN_MAX:
+    "[Invalid Parameter] <runs_older_than> must be less than or equal to 3650 days",
+  INVALID_DRY_RUN:
+    "[Invalid Parameter] <dry_run> must be a boolean value (true/false, yes/no, 1/0)",
+  INVALID_WORKFLOW_NAMES_FORMAT:
+    "[Invalid Parameter] <workflow_names> contains invalid characters. Use alphanumeric, spaces, dots, dashes, and underscores only",
+} as const;
+
+export const DEFAULTS = {
+  RUNS_TO_KEEP: 0,
+  RUNS_OLDER_THAN: 7,
+  DRY_RUN: false,
+} as const;
 
 // Pure counterparts to the getters in `src/lib/params.ts`: each function
 // here takes only the already-fetched raw value(s) and returns a parsed

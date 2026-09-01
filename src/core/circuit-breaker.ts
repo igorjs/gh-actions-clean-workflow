@@ -1,6 +1,38 @@
 // SPDX-License-Identifier: MIT
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
-import type { CircuitBreakerState, LogEvent } from "#src/config/types";
+
+export const CIRCUIT_BREAKER_CONFIG = {
+  /** Number of failures before opening circuit */
+  FAILURE_THRESHOLD: 5,
+  /** Number of successes needed to close circuit from HALF_OPEN */
+  SUCCESS_THRESHOLD: 2,
+  /** Time in ms to wait before attempting recovery */
+  TIMEOUT_MS: 60000,
+} as const;
+
+export const CircuitState = {
+  CLOSED: "CLOSED",
+  OPEN: "OPEN",
+  HALF_OPEN: "HALF_OPEN",
+} as const;
+export type CircuitState = (typeof CircuitState)[keyof typeof CircuitState];
+
+// Owned by the impure shell in `src/lib/circuit-breaker.ts`.
+export interface CircuitBreakerState {
+  state: CircuitState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime: number | null;
+  tripCount: number;
+}
+
+/**
+ * A single log event emitted by a pure state transition, to be dispatched
+ * to the logger by the caller.
+ */
+export interface LogEvent {
+  level: "info" | "warn";
+  message: string;
+}
 
 // Pure counterpart to `recordSuccess` in `src/lib/circuit-breaker.ts`:
 // returns the next state and any log events instead of mutating shared

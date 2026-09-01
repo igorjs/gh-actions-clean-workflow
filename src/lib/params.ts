@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 import { env } from "node:process";
-import type { Params, ParamsDeps } from "#src/config/types";
 import {
   parseDryRun,
   parseOwner,
@@ -10,6 +9,24 @@ import {
   parseToken,
   parseWorkflowNames,
 } from "#src/core/params";
+
+export type ParamsDeps = {
+  getInput: (
+    name: string,
+    opts?: { required?: boolean; trimWhitespace?: boolean }
+  ) => string;
+  setSecret: (value: string) => void;
+};
+
+export type Params = {
+  getToken: () => string;
+  getOwner: () => string;
+  getRepo: () => string;
+  getRunsToKeep: () => number;
+  getRunsOlderThan: () => number;
+  getDryRun: () => boolean;
+  getWorkflowNames: () => string[];
+};
 
 export function makeParams(deps: ParamsDeps): Params {
   const { getInput, setSecret } = deps;

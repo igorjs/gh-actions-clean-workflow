@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import type { ApiMetrics, CircuitBreakerHandle } from "#src/config/types";
+import type { RetryMetrics } from "#src/core/retry";
+import type { CircuitBreakerHandle } from "#src/lib/circuit-breaker";
 import { makeRetry } from "#src/lib/retry";
 import { makeHttpError } from "./api.test-helpers";
 
-function makeMetrics(): ApiMetrics {
+function makeMetrics(): RetryMetrics {
   return {
     totalRequests: 0,
     successfulRequests: 0,
     failedRequests: 0,
     retries: 0,
     rateLimitHits: 0,
-    circuitBreakerTrips: 0,
   };
 }
 

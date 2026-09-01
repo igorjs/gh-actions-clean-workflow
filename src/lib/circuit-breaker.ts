@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: MIT
-import { CircuitState } from "#src/config/constants";
-import type {
-  CircuitBreakerHandle,
-  CircuitBreakerState,
-  LogEvent,
-} from "#src/config/types";
 import {
   applyFailure,
   applySuccess,
+  type CircuitBreakerState,
+  CircuitState,
   checkExecutability,
+  type LogEvent,
 } from "#src/core/circuit-breaker";
 import * as logger from "./logger";
+
+export type CircuitBreakerHandle = {
+  canExecute: () => boolean;
+  recordSuccess: () => void;
+  recordFailure: () => void;
+  getState: () => CircuitState;
+  getTripCount: () => number;
+};
 
 // The pure transition functions return events instead of logging directly,
 // so every one of them needs the exact same event-to-logger routing. Doing

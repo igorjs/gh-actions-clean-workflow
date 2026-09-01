@@ -8,7 +8,10 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
+import {
+  CIRCUIT_BREAKER_CONFIG,
+  CircuitState,
+} from "#src/core/circuit-breaker";
 import { createCircuitBreaker } from "#src/lib/circuit-breaker";
 
 // This suite proves only the impure shell's own responsibilities: that its

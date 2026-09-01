@@ -47,9 +47,9 @@ describe("action.yml contract", () => {
     )
   );
 
-  // exportMetrics in src/index.ts delegates to computeOutputs for the
+  // exportMetrics in src/main.ts delegates to computeOutputs for the
   // key/value mapping, so the output keys no longer appear as literal
-  // setOut(...) calls in index.ts's source text. Calling computeOutputs
+  // setOut(...) calls in main.ts's source text. Calling computeOutputs
   // directly and inspecting its returned keys is a more robust contract
   // check: it survives future refactors of how exportMetrics wires the
   // mapping into setOutput.
