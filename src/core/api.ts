@@ -1,5 +1,23 @@
 // SPDX-License-Identifier: MIT
-import type { RunsToDeleteResult, WorkflowRun } from "#src/config/types";
+
+export interface WorkflowRun {
+  id: number;
+  workflow_id: number;
+  /** ISO 8601 timestamp */
+  created_at: string;
+  name: string;
+}
+
+export interface WorkflowStats {
+  total: number;
+  toDelete: number;
+}
+
+export interface RunsToDeleteResult {
+  runIds: number[];
+  totalRuns: number;
+  workflowStats: Map<number, WorkflowStats>;
+}
 
 // Pure counterpart to `getRunsToDelete` in `src/lib/api.ts`: computes which
 // runs to delete from an already-fetched, already-filtered list of runs

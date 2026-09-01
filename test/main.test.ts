@@ -8,8 +8,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import type { RunEnv } from "#src/config/types";
-import { run } from "#src/index";
+import { type RunEnv, run } from "#src/main";
 
 function makeEnv(): RunEnv & {
   mockDeleteRuns: Mock;

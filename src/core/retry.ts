@@ -1,29 +1,44 @@
 // SPDX-License-Identifier: MIT
-import { HTTP_STATUS } from "#src/config/constants";
-import type { ApiMetrics } from "#src/config/types";
+
+// Only the fields retry logic owns; circuitBreakerTrips lives in the
+// composed ApiMetrics (#src/config/types) instead.
+export interface RetryMetrics {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  retries: number;
+  rateLimitHits: number;
+}
+
+export const HTTP_STATUS = {
+  BAD_REQUEST: 400,
+  FORBIDDEN: 403,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
 
 export interface HttpError extends Error {
   status?: number;
   response?: { headers?: { "retry-after"?: string } };
 }
 
-export function recordAttempt(metrics: ApiMetrics): ApiMetrics {
+export function recordAttempt(metrics: RetryMetrics): RetryMetrics {
   return { ...metrics, totalRequests: metrics.totalRequests + 1 };
 }
 
-export function recordSuccess(metrics: ApiMetrics): ApiMetrics {
+export function recordSuccess(metrics: RetryMetrics): RetryMetrics {
   return { ...metrics, successfulRequests: metrics.successfulRequests + 1 };
 }
 
-export function recordRateLimitHit(metrics: ApiMetrics): ApiMetrics {
+export function recordRateLimitHit(metrics: RetryMetrics): RetryMetrics {
   return { ...metrics, rateLimitHits: metrics.rateLimitHits + 1 };
 }
 
-export function recordRetryScheduled(metrics: ApiMetrics): ApiMetrics {
+export function recordRetryScheduled(metrics: RetryMetrics): RetryMetrics {
   return { ...metrics, retries: metrics.retries + 1 };
 }
 
-export function recordRequestFailed(metrics: ApiMetrics): ApiMetrics {
+export function recordRequestFailed(metrics: RetryMetrics): RetryMetrics {
   return { ...metrics, failedRequests: metrics.failedRequests + 1 };
 }
 

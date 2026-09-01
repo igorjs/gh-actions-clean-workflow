@@ -1,19 +1,63 @@
 // SPDX-License-Identifier: MIT
-import { API_CONFIG, CircuitState } from "#src/config/constants";
-import type {
-  Api,
-  ApiDeps,
-  ApiMetrics,
-  ApiParams,
-  DeletionResult,
-  RunsToDeleteResult,
-  WorkflowRun,
-} from "#src/config/types";
-import { computeRunsToDelete } from "#src/core/api";
+
+import type { getOctokit } from "@actions/github";
+import type { ApiMetrics, Sleep } from "#src/config/types";
+import {
+  computeRunsToDelete,
+  type RunsToDeleteResult,
+  type WorkflowRun,
+} from "#src/core/api";
+import { CircuitState } from "#src/core/circuit-breaker";
+import type { RetryMetrics } from "#src/core/retry";
 import { createCircuitBreaker } from "./circuit-breaker";
 import { createDeletionMode } from "./deletion-mode";
 import * as logger from "./logger";
 import { makeRetry } from "./retry";
+
+export type OctokitInstance = ReturnType<typeof getOctokit>;
+
+export interface ApiParams {
+  token: string;
+  owner: string;
+  repo: string;
+  /** No actual deletions when true */
+  dryRun?: boolean;
+  /** Only delete runs from these workflows, if provided */
+  workflowNames?: string[];
+}
+
+export interface DeletionResult {
+  succeeded: number;
+  failed: number;
+}
+
+export type ApiDeps = {
+  getOctokit: (token: string) => OctokitInstance;
+  sleep: Sleep;
+  now: () => number;
+};
+
+export interface Api {
+  deleteRuns(runs: number[]): Promise<DeletionResult>;
+  getRunsToDelete(
+    olderThanDays?: number,
+    runsToKeep?: number
+  ): Promise<RunsToDeleteResult>;
+  getMetrics(): ApiMetrics;
+}
+
+export const BATCH_CONFIG = {
+  /** Maximum number of concurrent delete requests to respect GitHub's 100 concurrent limit */
+  BATCH_SIZE: 20,
+  /**
+   * Per-run rate limiting delay in ms, applied once per batch (delay *
+   * batch size) between batches of BATCH_SIZE concurrent deletions, not
+   * per individual delete. With the defaults below (20 * 350ms = 7s
+   * between batches of 20) this paces out to ~170 deletions/min with a
+   * safety margin under GitHub's secondary rate limits.
+   */
+  RATE_LIMIT_DELAY_MS: 350,
+} as const;
 
 // Closes over nothing, so it's declared once at module scope instead of as
 // an inline arrow rebuilt on every deleteRuns call.
@@ -51,13 +95,12 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
     const withRetry = makeRetry({ sleep });
     const mode = createDeletionMode(dryRun, sleep);
 
-    const metrics: ApiMetrics = {
+    const metrics: RetryMetrics = {
       totalRequests: 0,
       successfulRequests: 0,
       failedRequests: 0,
       retries: 0,
       rateLimitHits: 0,
-      circuitBreakerTrips: 0,
     };
 
     async function deleteRunById(id: number): Promise<void> {
@@ -129,14 +172,14 @@ export function makeApi(deps: ApiDeps): (params: ApiParams) => Api {
       // batch (nothing left to pace).
       const hasMoreBatches = index + 1 < batches.length;
       if (hasMoreBatches) {
-        await mode.paceBatch(API_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
+        await mode.paceBatch(BATCH_CONFIG.RATE_LIMIT_DELAY_MS * batch.length);
       }
 
       return processBatches(batches, index + 1, newSucceeded, newFailed);
     }
 
     async function deleteRuns(runs: number[]): Promise<DeletionResult> {
-      return processBatches(chunk(runs, API_CONFIG.BATCH_SIZE), 0, 0, 0);
+      return processBatches(chunk(runs, BATCH_CONFIG.BATCH_SIZE), 0, 0, 0);
     }
 
     async function getWorkflowRuns(

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
-import type { ApiMetrics, WorkflowStats } from "#src/config/types";
 
-// Pure counterpart to `exportMetrics` in `src/index.ts`: returns the output
+import type { ApiMetrics } from "#src/config/types";
+import type { WorkflowStats } from "#src/core/api";
+
+// Pure counterpart to `exportMetrics` in `src/main.ts`: returns the output
 // key/value pairs instead of calling `setOutput` directly, so the mapping
 // can be tested without an Actions runtime.
 export function computeOutputs(
@@ -29,7 +31,7 @@ function hasRunsToDelete([, stats]: [number, WorkflowStats]): boolean {
   return stats.toDelete > 0;
 }
 
-// Pure counterpart to `logWorkflowStats` in `src/index.ts`: returns message
+// Pure counterpart to `logWorkflowStats` in `src/main.ts`: returns message
 // strings instead of calling `logger.info` directly, so the filtering and
 // formatting logic can be tested without capturing console output.
 export function computeWorkflowStatsMessages(

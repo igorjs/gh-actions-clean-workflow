@@ -6,7 +6,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { WorkflowRun } from "#src/config/types";
+import type { WorkflowRun } from "#src/core/api";
 
 /**
  * The subset of GitHub's real raw REST API workflow-run shape this project's

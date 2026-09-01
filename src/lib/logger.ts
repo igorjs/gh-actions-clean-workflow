@@ -3,9 +3,16 @@
  * Standardized logging utility
  */
 
-import { LOG_PREFIX } from "#src/config/constants";
 import type { ApiMetrics } from "#src/config/types";
 import { formatMetricsLines } from "#src/core/logger";
+
+const LOG_PREFIX = {
+  INFO: "INFO:",
+  WARN: "WARN:",
+  ERROR: "ERROR:",
+  SUCCESS: "SUCCESS:",
+  DRY_RUN: "DRY RUN:",
+} as const;
 
 /**
  * Log informational message

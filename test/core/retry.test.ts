@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { HTTP_STATUS } from "#src/config/constants";
-import type { ApiMetrics } from "#src/config/types";
-import type { HttpError } from "#src/core/retry";
 import {
+  HTTP_STATUS,
+  type HttpError,
   isClientError,
   isRateLimitError,
+  type RetryMetrics,
   recordAttempt,
   recordRateLimitHit,
   recordRequestFailed,
@@ -14,24 +14,22 @@ import {
   toHttpError,
 } from "#src/core/retry";
 
-function zeroMetrics(): ApiMetrics {
+function zeroMetrics(): RetryMetrics {
   return {
     totalRequests: 0,
     successfulRequests: 0,
     rateLimitHits: 0,
     retries: 0,
     failedRequests: 0,
-    circuitBreakerTrips: 0,
   };
 }
 
-const ALL_FIELDS: (keyof ApiMetrics)[] = [
+const ALL_FIELDS: (keyof RetryMetrics)[] = [
   "totalRequests",
   "successfulRequests",
   "rateLimitHits",
   "retries",
   "failedRequests",
-  "circuitBreakerTrips",
 ];
 
 describe.each([
@@ -57,7 +55,7 @@ describe.each([
     const result = fn(metrics);
 
     // Assert
-    expect(result[field as keyof ApiMetrics]).toBe(1);
+    expect(result[field as keyof RetryMetrics]).toBe(1);
     for (const other of ALL_FIELDS) {
       if (other !== field) {
         expect(result[other]).toBe(0);
@@ -74,7 +72,7 @@ describe.each([
     const twice = fn(once);
 
     // Assert
-    expect(twice[field as keyof ApiMetrics]).toBe(2);
+    expect(twice[field as keyof RetryMetrics]).toBe(2);
   });
 
   it("does not mutate the input object", () => {

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
-import { API_CONFIG, HTTP_STATUS } from "#src/config/constants";
-import type {
-  ApiMetrics,
-  CircuitBreakerHandle,
-  RetryDeps,
-} from "#src/config/types";
+import type { Sleep } from "#src/config/types";
 import {
+  HTTP_STATUS,
   type HttpError,
   isClientError,
   isRateLimitError,
+  type RetryMetrics,
   recordAttempt,
   recordRateLimitHit,
   recordRequestFailed,
@@ -16,7 +13,23 @@ import {
   recordSuccess,
   toHttpError,
 } from "#src/core/retry";
+import type { CircuitBreakerHandle } from "./circuit-breaker";
 import * as logger from "./logger";
+
+export type RetryDeps = {
+  sleep: Sleep;
+};
+
+export const RETRY_CONFIG = {
+  /** Maximum retries for failed requests */
+  MAX_RETRIES: 3,
+  /** Initial retry delay in ms */
+  INITIAL_RETRY_DELAY_MS: 1000,
+  /** Maximum retry delay in ms */
+  MAX_RETRY_DELAY_MS: 32000,
+  /** Default rate limit wait time in ms when no retry-after header */
+  DEFAULT_RATE_LIMIT_WAIT_MS: 60000,
+} as const;
 
 // Merges a pure record* function's returned patch back onto the caller's
 // live metrics object. Every call site needs the same two-step "compute
@@ -25,8 +38,8 @@ import * as logger from "./logger";
 // removes the chance of a call site assigning the result to a new local
 // instead of merging it, which would silently drop the update.
 function apply(
-  metrics: ApiMetrics,
-  fn: (metrics: ApiMetrics) => ApiMetrics
+  metrics: RetryMetrics,
+  fn: (metrics: RetryMetrics) => RetryMetrics
 ): void {
   Object.assign(metrics, fn(metrics));
 }
@@ -35,7 +48,7 @@ function apply(
 // every call site that gives up on an operation records both signals
 // together, instead of relying on callers to remember both steps.
 function recordFailure(
-  metrics: ApiMetrics,
+  metrics: RetryMetrics,
   circuitBreaker: CircuitBreakerHandle
 ): void {
   apply(metrics, recordRequestFailed);
@@ -52,13 +65,13 @@ export function makeRetry(deps: RetryDeps) {
   async function handleRateLimitError(
     error: HttpError,
     operationName: string,
-    metrics: ApiMetrics
+    metrics: RetryMetrics
   ): Promise<void> {
     apply(metrics, recordRateLimitHit);
     const retryAfter = error.response?.headers?.["retry-after"];
     const waitTime = retryAfter
       ? parseInt(retryAfter, 10) * 1000
-      : API_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS;
+      : RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS;
     logger.warn(`Rate limit hit for ${operationName}, waiting ${waitTime}ms`);
     await sleep(waitTime);
     apply(metrics, recordRetryScheduled);
@@ -70,15 +83,15 @@ export function makeRetry(deps: RetryDeps) {
     error: HttpError,
     operationName: string,
     attempt: number,
-    metrics: ApiMetrics
+    metrics: RetryMetrics
   ): Promise<void> {
     const delay = Math.min(
-      API_CONFIG.INITIAL_RETRY_DELAY_MS * 2 ** attempt,
-      API_CONFIG.MAX_RETRY_DELAY_MS
+      RETRY_CONFIG.INITIAL_RETRY_DELAY_MS * 2 ** attempt,
+      RETRY_CONFIG.MAX_RETRY_DELAY_MS
     );
     logger.warn(
       `${operationName} failed (attempt ${attempt + 1}/${
-        API_CONFIG.MAX_RETRIES + 1
+        RETRY_CONFIG.MAX_RETRIES + 1
       }), retrying in ${delay}ms: ${error.message}`
     );
     await sleep(delay);
@@ -95,7 +108,7 @@ export function makeRetry(deps: RetryDeps) {
   return async function withRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
-    metrics: ApiMetrics,
+    metrics: RetryMetrics,
     circuitBreaker: CircuitBreakerHandle
   ): Promise<T> {
     async function attempt(attemptNum: number): Promise<T> {
@@ -110,7 +123,7 @@ export function makeRetry(deps: RetryDeps) {
 
         if (isRateLimitError(lastError)) {
           await handleRateLimitError(lastError, operationName, metrics);
-          if (attemptNum === API_CONFIG.MAX_RETRIES) {
+          if (attemptNum === RETRY_CONFIG.MAX_RETRIES) {
             recordFailure(metrics, circuitBreaker);
             throw lastError;
           }
@@ -128,7 +141,7 @@ export function makeRetry(deps: RetryDeps) {
           throw lastError;
         }
 
-        if (attemptNum < API_CONFIG.MAX_RETRIES) {
+        if (attemptNum < RETRY_CONFIG.MAX_RETRIES) {
           await handleRetryableError(
             lastError,
             operationName,

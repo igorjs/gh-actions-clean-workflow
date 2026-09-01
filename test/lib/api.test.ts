@@ -8,8 +8,8 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { API_CONFIG, CIRCUIT_BREAKER_CONFIG } from "#src/config/constants";
-import { makeApi } from "#src/lib/api";
+import { CIRCUIT_BREAKER_CONFIG } from "#src/core/circuit-breaker";
+import { BATCH_CONFIG, makeApi } from "#src/lib/api";
 import { makeHttpError, makeWorkflowRuns } from "./api.test-helpers";
 
 function makeTestDeps() {
@@ -174,17 +174,17 @@ describe("api", () => {
     });
 
     it.each([
-      { n: API_CONFIG.BATCH_SIZE, label: "exactly one full batch" },
+      { n: BATCH_CONFIG.BATCH_SIZE, label: "exactly one full batch" },
       {
-        n: API_CONFIG.BATCH_SIZE + 1,
+        n: BATCH_CONFIG.BATCH_SIZE + 1,
         label: "one full batch plus a short-circuited trailing run",
       },
       {
-        n: API_CONFIG.BATCH_SIZE * 2,
+        n: BATCH_CONFIG.BATCH_SIZE * 2,
         label: "two full batches, the second fully short-circuited",
       },
       {
-        n: API_CONFIG.BATCH_SIZE * 2 + 1,
+        n: BATCH_CONFIG.BATCH_SIZE * 2 + 1,
         label: "two full batches plus a short-circuited trailing run",
       },
     ])(

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { CIRCUIT_BREAKER_CONFIG, CircuitState } from "#src/config/constants";
-import type { CircuitBreakerState, LogEvent } from "#src/config/types";
 import {
   applyFailure,
   applySuccess,
+  CIRCUIT_BREAKER_CONFIG,
+  type CircuitBreakerState,
+  CircuitState,
   checkExecutability,
+  type LogEvent,
 } from "#src/core/circuit-breaker";
 
 function makeState(
