@@ -1,6 +1,11 @@
 .worktrees/
 .claude/
 
+# Build output. Only ever committed on tagged release commits (built and
+# committed there by the release pipeline), never on regular pushes to
+# main. See "Releasing" in CONTRIBUTING.md.
+/dist/
+
 ### macOS ###
 # General
 .DS_Store
