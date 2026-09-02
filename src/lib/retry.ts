@@ -70,8 +70,12 @@ export function makeRetry(deps: RetryDeps) {
   ): Promise<void> {
     apply(metrics, recordRateLimitHit);
     const retryAfter = error.response?.headers?.["retry-after"];
-    const waitTime = retryAfter
-      ? parseInt(retryAfter, 10) * 1000
+    const parsedRetryAfter = retryAfter ? parseInt(retryAfter, 10) : NaN;
+    // GitHub controls this header, but guard against a malformed value
+    // (e.g. non-numeric) turning into a NaN-derived near-zero-delay sleep
+    // instead of a safe fallback wait.
+    const waitTime = Number.isFinite(parsedRetryAfter)
+      ? parsedRetryAfter * 1000
       : RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS;
     logger.warn(`Rate limit hit for ${operationName}, waiting ${waitTime}ms`);
     await sleep(waitTime);

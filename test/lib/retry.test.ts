@@ -217,6 +217,33 @@ describe("retry", () => {
       expect(metrics.rateLimitHits).toBe(3);
     });
 
+    it("should fall back to the default rate-limit wait when Retry-After is not a valid number", async () => {
+      // Regression guard: a malformed Retry-After header (non-numeric) used
+      // to flow straight into parseInt, producing NaN * 1000 = NaN, which
+      // resolves as an effectively-zero-delay sleep instead of a safe
+      // fallback wait (src/lib/retry.ts's Number.isFinite guard).
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const withRetry = makeRetry({ sleep });
+      const metrics = makeMetrics();
+      const circuitBreaker = makeCircuitBreaker();
+      const operation = vi
+        .fn()
+        .mockRejectedValueOnce(
+          makeHttpError("rate limited", {
+            status: 429,
+            retryAfter: "not-a-number",
+          })
+        )
+        .mockResolvedValueOnce("ok");
+
+      await withRetry(operation, "op", metrics, circuitBreaker);
+
+      expect(sleep).toHaveBeenCalledWith(
+        RETRY_CONFIG.DEFAULT_RATE_LIMIT_WAIT_MS
+      );
+      expect(metrics.rateLimitHits).toBe(1);
+    });
+
     it("should fail fast on a 4xx client error without retrying", async () => {
       const sleep = vi.fn().mockResolvedValue(undefined);
       const withRetry = makeRetry({ sleep });

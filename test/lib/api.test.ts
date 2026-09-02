@@ -323,6 +323,47 @@ describe("api", () => {
       expect(result.totalRuns).toBe(3);
       expect(result.workflowStats.get(300)).toBeUndefined();
     });
+
+    it("should treat a run with a null name (deleted/renamed workflow file) as an empty-string name", async () => {
+      // GitHub returns `name: null` for runs whose workflow file no longer
+      // exists (deleted or renamed). toWorkflowRun's `run.name || ""`
+      // fallback (src/lib/api.ts:84) must normalize that to "" rather than
+      // propagate null, since workflowNames.includes(null) would throw off
+      // the string-array filter type and never match any configured filter.
+      const deps = makeTestDeps();
+      const runsWithNullName = [
+        {
+          id: 1,
+          workflow_id: 100,
+          created_at: "2024-01-05T00:00:00Z",
+          name: null,
+        },
+        {
+          id: 2,
+          workflow_id: 200,
+          created_at: "2024-01-04T00:00:00Z",
+          name: "CI",
+        },
+      ];
+      deps.mockPaginateIterator.mockImplementation(async function* () {
+        yield { data: runsWithNullName };
+      });
+
+      // No filter: both runs (including the null-named one) are candidates.
+      const unfiltered = await makeApi(deps)(BASE_PARAMS).getRunsToDelete(
+        undefined,
+        0
+      );
+      expect(unfiltered.runIds).toEqual([1, 2]);
+
+      // Filtered by name: the null-named run normalizes to "" and never
+      // matches a configured filter, so only the named run survives.
+      const filtered = await makeApi(deps)({
+        ...BASE_PARAMS,
+        workflowNames: ["CI"],
+      }).getRunsToDelete(undefined, 0);
+      expect(filtered.runIds).toEqual([2]);
+    });
   });
 
   describe("Error handling", () => {

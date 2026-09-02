@@ -50,7 +50,7 @@ Need a full workflow file you can drop in? See [Examples](#examples) below.
 - **Rate-limit aware**: respects GitHub's `Retry-After` header and paces requests
 - **Dry run mode** to preview deletions without touching anything
 - **Detailed metrics** exposed as action outputs for monitoring, alerting, or dashboards
-- **Hardened CI**: signed commits, pinned action SHAs, OSV + Socket + CodeQL + betterleaks scanning
+- **Hardened CI**: signed commits, pinned action SHAs, OSV-Scanner + betterleaks scanning, OpenSSF Scorecard, and dependency review
 
 ## Inputs
 
@@ -370,7 +370,7 @@ v7 keeps the same input names but adds new ones; existing v6 workflows continue 
 
 ## Security
 
-If you find a vulnerability, please report it privately to the maintainer rather than opening a public issue. Continuous security scanning runs in CI via CodeQL, OSV-Scanner, Socket Security, and betterleaks.
+If you find a vulnerability, please report it privately to the maintainer rather than opening a public issue. Continuous security scanning runs in CI via OSV-Scanner, betterleaks, OpenSSF Scorecard, and dependency review.
 
 ## License
 
