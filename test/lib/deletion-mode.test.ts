@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import { createDeletionMode } from "#src/lib/deletion-mode";
+import {
+  createDeletionMode,
+  DRY_RUN_SIMULATED_DELAY_MS,
+} from "#src/lib/deletion-mode";
 
 describe("createDeletionMode", () => {
   describe("real mode (dryRun: false)", () => {
@@ -79,7 +82,7 @@ describe("createDeletionMode", () => {
       await mode.execute(1, vi.fn());
 
       // Assert
-      expect(sleep).toHaveBeenCalledWith(100);
+      expect(sleep).toHaveBeenCalledWith(DRY_RUN_SIMULATED_DELAY_MS);
       vi.restoreAllMocks();
     });
 
