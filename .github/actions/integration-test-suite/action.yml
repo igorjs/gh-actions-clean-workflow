@@ -5,10 +5,11 @@ description: Run all clean-workflow scenarios (dry run only) to validate behavio
 runs:
   using: composite
   steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        fetch-depth: 0
+    # No checkout here: this composite action runs `uses: ./` (the local
+    # action from dist/index.js) in the calling job's own workspace, which
+    # has already checked out the repo and built dist/. actions/checkout
+    # defaults to clean: true (git clean -ffdx before checkout), which would
+    # wipe the freshly-built, gitignored dist/index.js right back out.
 
     # Test 1: Basic dry run with default settings
     - name: Run basic dry run
