@@ -305,12 +305,13 @@ Pin one of the following based on how aggressively you want updates:
 
 | Tag style | Example | Behavior |
 |---|---|---|
-| Floating major (recommended) | `@v8` | Auto-updates to the latest `v8.x.y` patch/minor on each run. Breaking changes only on major bumps. |
+| Floating major (recommended) | `@v8` | Auto-updates to the latest `v8.x.y` patch/minor on each release. Breaking changes only on major bumps. |
 | Specific tag | `@v8.0.0` | Pinned; never moves. Update manually when you want a new version. |
-| Commit SHA | `@<sha>` | Strictest pin. Use when you need byte-for-byte reproducibility (Dependabot can still bump this). |
-| `@main` | `@main` | Not recommended for production; pulls whatever is on `main` at run time. |
+| Release commit SHA | `@<sha>` | Strictest pin. Use the SHA a release tag points to, for byte-for-byte reproducibility. |
 
-Releases follow [Semantic Versioning](https://semver.org/) and are cut automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from [Conventional Commits](https://www.conventionalcommits.org/): every push to `main` is analyzed, and a qualifying commit (`fix:`, `feat:`, or a breaking change) tags a release and moves the floating major tag with no manual step. See the [Releases page](https://github.com/igorjs/gh-actions-clean-workflow/releases) for changelogs.
+`@main` and arbitrary (non-release) commit SHAs are **not supported**: `dist/index.js`, the file the `node24` runtime actually executes, is only built and committed on tagged release commits, not on every push to `main` (see [Development](#development)). Pin to a tag or a release commit's SHA instead.
+
+Releases follow [Semantic Versioning](https://semver.org/) and are cut automatically by [semantic-release](https://github.com/semantic-release/semantic-release) from [Conventional Commits](https://www.conventionalcommits.org/): every push to `main` is analyzed, and a qualifying commit (`fix:`, `feat:`, or a breaking change) builds `dist/`, commits it into the release, tags the release, and moves the floating major tag, all with no manual step. See the [Releases page](https://github.com/igorjs/gh-actions-clean-workflow/releases) for changelogs.
 
 ## Development
 
